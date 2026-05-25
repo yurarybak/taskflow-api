@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 
@@ -24,5 +24,20 @@ export class WorkspacesService {
         createdAt: 'desc',
       },
     });
+  }
+
+  async findOneByOwner(ownerId: string, workspaceId: string) {
+    const workspace = await this.prisma.workspace.findFirst({
+      where: {
+        id: workspaceId,
+        ownerId,
+      },
+    });
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    return workspace;
   }
 }
