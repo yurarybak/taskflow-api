@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
+import { UpdateProjectDto } from './dto/update-project.dto';
 
 @Injectable()
 export class ProjectsService {
@@ -46,17 +47,13 @@ export class ProjectsService {
     });
   }
 
-  async findOneByWorkspace(
-    ownerId: string,
-    workspaceId: string,
-    projectId: string,
-  ) {
-    await this.ensureWorkspaceOwner(ownerId, workspaceId);
-
+  async findOneByOwner(ownerId: string, projectId: string) {
     const project = await this.prisma.project.findFirst({
       where: {
         id: projectId,
-        workspaceId,
+        workspace: {
+          ownerId,
+        },
       },
     });
 
@@ -65,5 +62,30 @@ export class ProjectsService {
     }
 
     return project;
+  }
+
+  async update(
+    ownerId: string,
+    projectId: string,
+    updateProjectDto: UpdateProjectDto,
+  ) {
+    await this.findOneByOwner(ownerId, projectId);
+
+    return this.prisma.project.update({
+      where: {
+        id: projectId,
+      },
+      data: updateProjectDto,
+    });
+  }
+
+  async remove(ownerId: string, projectId: string) {
+    await this.findOneByOwner(ownerId, projectId);
+
+    return this.prisma.project.delete({
+      where: {
+        id: projectId,
+      },
+    });
   }
 }

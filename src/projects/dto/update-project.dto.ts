@@ -1,6 +1,6 @@
 import { IsOptional, IsString, MinLength, MaxLength } from 'class-validator';
 
-export class UpdateWorkspaceDto {
+export class UpdateProjectDto {
   @IsOptional()
   @IsString()
   @MinLength(2)

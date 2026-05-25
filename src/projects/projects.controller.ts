@@ -1,8 +1,18 @@
-import { Controller, UseGuards, Post, Body, Param, Get } from '@nestjs/common';
+import {
+  Controller,
+  UseGuards,
+  Post,
+  Body,
+  Param,
+  Get,
+  Patch,
+  Delete,
+} from '@nestjs/common';
 
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
+import { UpdateProjectDto } from './dto/update-project.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('workspaces/:workspaceId/projects')
@@ -30,13 +40,25 @@ export class ProjectsController {
   @Get(':projectId')
   findOne(
     @GetCurrentUser() user: { id: string; email: string },
-    @Param('workspaceId') workspaceId: string,
     @Param('projectId') projectId: string,
   ) {
-    return this.projectsService.findOneByWorkspace(
-      user.id,
-      workspaceId,
-      projectId,
-    );
+    return this.projectsService.findOneByOwner(user.id, projectId);
+  }
+
+  @Patch(':projectId')
+  update(
+    @GetCurrentUser() user: { id: string; email: string },
+    @Param('projectId') projectId: string,
+    @Body() updateProjectDto: UpdateProjectDto,
+  ) {
+    return this.projectsService.update(user.id, projectId, updateProjectDto);
+  }
+
+  @Delete(':projectId')
+  remove(
+    @GetCurrentUser() user: { id: string; email: string },
+    @Param('projectId') projectId: string,
+  ) {
+    return this.projectsService.remove(user.id, projectId);
   }
 }
