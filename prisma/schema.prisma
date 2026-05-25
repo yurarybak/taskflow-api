@@ -36,5 +36,20 @@ model Workspace {
 
   owned User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
+  projects Project[]
+
   @@map("workspaces")
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  workspaceId String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("projects")
 }
