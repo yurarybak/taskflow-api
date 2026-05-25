@@ -14,4 +14,15 @@ export class WorkspacesService {
       },
     });
   }
+
+  findAllByOwner(ownerId: string) {
+    return this.prisma.workspace.findMany({
+      where: {
+        ownerId,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
 }
