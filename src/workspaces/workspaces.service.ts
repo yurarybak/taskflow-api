@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
+import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 
 @Injectable()
 export class WorkspacesService {
@@ -39,5 +40,28 @@ export class WorkspacesService {
     }
 
     return workspace;
+  }
+
+  update(
+    ownerId: string,
+    workspaceId: string,
+    updateWorkspaceDto: UpdateWorkspaceDto,
+  ) {
+    return this.prisma.workspace.update({
+      where: {
+        id: workspaceId,
+        ownerId,
+      },
+      data: updateWorkspaceDto,
+    });
+  }
+
+  remove(ownerId: string, workspaceId: string) {
+    return this.prisma.workspace.delete({
+      where: {
+        id: workspaceId,
+        ownerId,
+      },
+    });
   }
 }
