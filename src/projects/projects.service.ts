@@ -12,18 +12,6 @@ import type { PaginatedResponse } from '../common/types/paginated-response.type'
 export class ProjectsService {
   constructor(private readonly prisma: PrismaService) { }
 
-  private async ensureWorkspaceOwner(ownerId: string, workspaceId: string) {
-    const workspace = await this.prisma.workspace.findFirst({
-      where: {
-        id: workspaceId,
-        ownerId: ownerId,
-      },
-    });
-    if (!workspace) {
-      throw new NotFoundException('Workspace not found');
-    }
-  }
-
   private async ensureWorkspaceMember(workspaceId: string, userId: string) {
     const membership = await this.prisma.workspaceMember.findUnique({
       where: {
