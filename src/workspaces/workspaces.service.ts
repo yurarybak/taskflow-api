@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
+import { AddWorkspaceMemberDto } from './dto/add-workspace-member.dto';
 import { WorkspaceRole } from '../../generated/prisma/enums';
 
 @Injectable()
@@ -99,6 +100,61 @@ export class WorkspacesService {
       },
       orderBy: {
         createdAt: 'asc',
+      },
+    });
+  }
+
+  async addMember(
+    ownerId: string,
+    workspaceId: string,
+    addWorkspaceMemberDto: AddWorkspaceMemberDto,
+  ) {
+    // Ensure workspace exists and belongs to the owner
+    await this.findOneByOwner(ownerId, workspaceId); 
+
+    // Find the user by email
+    const member = await this.prisma.user.findUnique({
+      where: {
+        email: addWorkspaceMemberDto.email,
+      },
+    });
+
+    if (!member) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Check if the user is already a member of the workspace
+    const existingMembership = await this.prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId,
+          userId: member.id,
+        },
+      },
+    });
+
+    if (existingMembership) {
+      throw new NotFoundException('User is already a member of the workspace');
+    }
+
+    // Add the user as a member of the workspace
+    return this.prisma.workspaceMember.create({
+      data: {
+        workspaceId,
+        userId: member.id,
+        role: addWorkspaceMemberDto.role || WorkspaceRole.MEMBER,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
       },
     });
   }
