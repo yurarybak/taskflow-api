@@ -2,10 +2,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
+import { FindProjectsQueryDto } from './dto/find-projects-query.dto';
+import { createPaginationMeta } from '../common/utils/create-pagination-meta';
 
+import type { Project } from '../../generated/prisma/client';
+import type { PaginatedResponse } from '../common/types/paginated-response.type';
 @Injectable()
 export class ProjectsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   private async ensureWorkspaceOwner(ownerId: string, workspaceId: string) {
     const workspace = await this.prisma.workspace.findFirst({
@@ -34,17 +38,38 @@ export class ProjectsService {
     });
   }
 
-  async findAllByWorkspace(ownerId: string, workspaceId: string) {
+  async findAllByWorkspace(
+    ownerId: string,
+    workspaceId: string,
+    query: FindProjectsQueryDto,
+  ): Promise<PaginatedResponse<Project>> {
     await this.ensureWorkspaceOwner(ownerId, workspaceId);
 
-    return this.prisma.project.findMany({
-      where: {
-        workspaceId,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+    const { page = 1, limit = 10 } = query;
+    const skip = (page - 1) * limit;
+
+    const [projects, total] = await Promise.all([
+      this.prisma.project.findMany({
+        where: {
+          workspaceId,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip,
+        take: limit,
+      }),
+      this.prisma.project.count({
+        where: {
+          workspaceId,
+        },
+      }),
+    ]);
+
+    return {
+      data: projects,
+      meta: createPaginationMeta(total, page, limit),
+    };
   }
 
   async findOneByOwner(ownerId: string, projectId: string) {

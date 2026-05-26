@@ -8,12 +8,14 @@ import {
   Get,
   Patch,
   Delete,
+  Query,
 } from '@nestjs/common';
 
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
+import { FindProjectsQueryDto } from './dto/find-projects-query.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { CurrentUser } from '../auth/types/current-user.type';
 
@@ -36,8 +38,9 @@ export class ProjectsController {
   findAll(
     @GetCurrentUser() user: CurrentUser,
     @Param('workspaceId') workspaceId: string,
+    @Query() query: FindProjectsQueryDto,
   ) {
-    return this.projectsService.findAllByWorkspace(user.id, workspaceId);
+    return this.projectsService.findAllByWorkspace(user.id, workspaceId, query);
   }
 
   @Get(':projectId')
