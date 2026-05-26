@@ -4,6 +4,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { FindTasksQueryDto } from './dto/find-tasks-query.dto';
+import { createPaginationMeta } from '../common/utils/create-pagination-meta';
+
+import type { Prisma } from '../../generated/prisma/client';
+import type { PaginatedResponse } from '../common/types/paginated-response.type';
+import type { Task } from '../../generated/prisma/client';
 
 @Injectable()
 export class TasksService {
@@ -68,36 +73,54 @@ export class TasksService {
     creatorId: string,
     projectId: string,
     query: FindTasksQueryDto,
-  ) {
+  ): Promise<PaginatedResponse<Task>> {
     await this.ensureProjectOwner(creatorId, projectId);
 
-    return this.prisma.task.findMany({
-      where: {
-        projectId,
-        creatorId,
-        status: query.status,
-        priority: query.priority,
-        OR: query.search
-          ? [
-              {
-                title: {
-                  contains: query.search,
-                  mode: 'insensitive',
-                },
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.TaskWhereInput = {
+      projectId,
+      creatorId,
+      status: query.status,
+      priority: query.priority,
+      OR: query.search
+        ? [
+            {
+              title: {
+                contains: query.search,
+                mode: 'insensitive',
               },
-              {
-                description: {
-                  contains: query.search,
-                  mode: 'insensitive',
-                },
+            },
+            {
+              description: {
+                contains: query.search,
+                mode: 'insensitive',
               },
-            ]
-          : undefined,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+            },
+          ]
+        : undefined,
+    };
+
+    const [tasks, total] = await Promise.all([
+      this.prisma.task.findMany({
+        where,
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip,
+        take: limit,
+      }),
+      this.prisma.task.count({
+        where,
+      }),
+    ]);
+
+    return {
+      data: tasks,
+      meta: createPaginationMeta(total, page, limit),
+    };
   }
 
   remove(taskId: string) {
