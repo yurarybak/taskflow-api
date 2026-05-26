@@ -14,6 +14,7 @@ import { TasksService } from './tasks.service';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
+import type { CurrentUser } from '../auth/types/current-user.type';
 
 @Controller('projects/:projectId/tasks')
 @UseGuards(JwtAuthGuard)
@@ -22,7 +23,7 @@ export class TasksController {
 
   @Post()
   create(
-    @GetCurrentUser() user: { id: string; email: string },
+    @GetCurrentUser() user: CurrentUser,
     @Param('projectId') projectId: string,
     @Body() createTaskDto: CreateTaskDto,
   ) {
@@ -39,7 +40,7 @@ export class TasksController {
 
   @Get()
   findAll(
-    @GetCurrentUser() user: { id: string; email: string },
+    @GetCurrentUser() user: CurrentUser,
     @Param('projectId') projectId: string,
   ) {
     return this.tasksService.findAllByProject(user.id, projectId);
@@ -47,7 +48,7 @@ export class TasksController {
 
   @Get(':taskId')
   findOne(
-    @GetCurrentUser() user: { id: string; email: string },
+    @GetCurrentUser() user: CurrentUser,
     @Param('taskId') taskId: string,
   ) {
     return this.tasksService.findOneByProjectOwner(user.id, taskId);

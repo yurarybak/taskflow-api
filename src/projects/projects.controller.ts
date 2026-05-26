@@ -14,6 +14,7 @@ import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import type { CurrentUser } from '../auth/types/current-user.type';
 
 @Controller('workspaces/:workspaceId/projects')
 @UseGuards(JwtAuthGuard)
@@ -22,7 +23,7 @@ export class ProjectsController {
 
   @Post()
   create(
-    @GetCurrentUser() user: { id: string; email: string },
+    @GetCurrentUser() user: CurrentUser,
     @Param('workspaceId') workspaceId: string,
     @Body() createProjectDto: CreateProjectDto,
   ) {
@@ -31,7 +32,7 @@ export class ProjectsController {
 
   @Get()
   findAll(
-    @GetCurrentUser() user: { id: string; email: string },
+    @GetCurrentUser() user: CurrentUser,
     @Param('workspaceId') workspaceId: string,
   ) {
     return this.projectsService.findAllByWorkspace(user.id, workspaceId);
@@ -39,7 +40,7 @@ export class ProjectsController {
 
   @Get(':projectId')
   findOne(
-    @GetCurrentUser() user: { id: string; email: string },
+    @GetCurrentUser() user: CurrentUser,
     @Param('projectId') projectId: string,
   ) {
     return this.projectsService.findOneByOwner(user.id, projectId);
@@ -47,7 +48,7 @@ export class ProjectsController {
 
   @Patch(':projectId')
   update(
-    @GetCurrentUser() user: { id: string; email: string },
+    @GetCurrentUser() user: CurrentUser,
     @Param('projectId') projectId: string,
     @Body() updateProjectDto: UpdateProjectDto,
   ) {
@@ -56,7 +57,7 @@ export class ProjectsController {
 
   @Delete(':projectId')
   remove(
-    @GetCurrentUser() user: { id: string; email: string },
+    @GetCurrentUser() user: CurrentUser,
     @Param('projectId') projectId: string,
   ) {
     return this.projectsService.remove(user.id, projectId);
