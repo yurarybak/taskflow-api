@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
@@ -110,7 +114,7 @@ export class WorkspacesService {
     addWorkspaceMemberDto: AddWorkspaceMemberDto,
   ) {
     // Ensure workspace exists and belongs to the owner
-    await this.findOneByOwner(ownerId, workspaceId); 
+    await this.findOneByOwner(ownerId, workspaceId);
 
     // Find the user by email
     const member = await this.prisma.user.findUnique({
@@ -134,7 +138,7 @@ export class WorkspacesService {
     });
 
     if (existingMembership) {
-      throw new NotFoundException('User is already a member of the workspace');
+      throw new ConflictException('User is already a member of the workspace');
     }
 
     // Add the user as a member of the workspace
