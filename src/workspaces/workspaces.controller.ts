@@ -1,3 +1,4 @@
+import { ApiBearerAuth } from '@nestjs/swagger';
 import {
   Body,
   Controller,
@@ -14,39 +15,38 @@ import { WorkspacesService } from './workspaces.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
+import type { CurrentUser } from '../auth/types/current-user.type';
 
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('workspaces')
 export class WorkspacesController {
   constructor(private readonly workspacesService: WorkspacesService) {}
 
-  @UseGuards(JwtAuthGuard)
   @Post()
   createWorkspace(
-    @GetCurrentUser() user: { id: string; email: string },
+    @GetCurrentUser() user: CurrentUser,
     @Body() createWorkspaceDto: CreateWorkspaceDto,
   ) {
     return this.workspacesService.create(user.id, createWorkspaceDto);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get()
-  findAll(@GetCurrentUser() user: { id: string; email: string }) {
+  findAll(@GetCurrentUser() user: CurrentUser) {
     return this.workspacesService.findAllByOwner(user.id);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get(':id')
   findOne(
-    @GetCurrentUser() user: { id: string; email: string },
+    @GetCurrentUser() user: CurrentUser,
     @Param('id') workspaceId: string,
   ) {
     return this.workspacesService.findOneByOwner(user.id, workspaceId);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   update(
-    @GetCurrentUser() user: { id: string; email: string },
+    @GetCurrentUser() user: CurrentUser,
     @Param('id') workspaceId: string,
     @Body() updateWorkspaceDto: UpdateWorkspaceDto,
   ) {
@@ -57,10 +57,9 @@ export class WorkspacesController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   remove(
-    @GetCurrentUser() user: { id: string; email: string },
+    @GetCurrentUser() user: CurrentUser,
     @Param('id') workspaceId: string,
   ) {
     return this.workspacesService.remove(user.id, workspaceId);

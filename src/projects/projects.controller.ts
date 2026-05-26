@@ -1,3 +1,4 @@
+import { ApiBearerAuth } from '@nestjs/swagger';
 import {
   Controller,
   UseGuards,
@@ -16,8 +17,9 @@ import { UpdateProjectDto } from './dto/update-project.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { CurrentUser } from '../auth/types/current-user.type';
 
-@Controller('workspaces/:workspaceId/projects')
+@ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
+@Controller('workspaces/:workspaceId/projects')
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
