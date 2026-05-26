@@ -5,6 +5,7 @@ import { UpdateProjectDto } from './dto/update-project.dto';
 import { FindProjectsQueryDto } from './dto/find-projects-query.dto';
 import { createPaginationMeta } from '../common/utils/create-pagination-meta';
 
+import type { Prisma } from '../../generated/prisma/client';
 import type { Project } from '../../generated/prisma/client';
 import type { PaginatedResponse } from '../common/types/paginated-response.type';
 @Injectable()
@@ -48,11 +49,29 @@ export class ProjectsService {
     const { page = 1, limit = 10 } = query;
     const skip = (page - 1) * limit;
 
+    const where: Prisma.ProjectWhereInput = {
+      workspaceId,
+      OR: query.search
+        ? [
+            {
+              name: {
+                contains: query.search,
+                mode: 'insensitive',
+              },
+            },
+            {
+              description: {
+                contains: query.search,
+                mode: 'insensitive',
+              },
+            },
+          ]
+        : undefined,
+    };
+
     const [projects, total] = await Promise.all([
       this.prisma.project.findMany({
-        where: {
-          workspaceId,
-        },
+        where,
         orderBy: {
           createdAt: 'desc',
         },
@@ -60,9 +79,7 @@ export class ProjectsService {
         take: limit,
       }),
       this.prisma.project.count({
-        where: {
-          workspaceId,
-        },
+        where,
       }),
     ]);
 
