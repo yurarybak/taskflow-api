@@ -24,12 +24,29 @@ export class ProjectsService {
     }
   }
 
+  private async ensureWorkspaceMember(workspaceId: string, userId: string) {
+    const membership = await this.prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId,
+          userId,
+        },
+      },
+    });
+
+    if (!membership) {
+      throw new NotFoundException('Workspace member not found');
+    }
+
+    return membership;
+  }
+
   async create(
     ownerId: string,
     workspaceId: string,
     createProjectDto: CreateProjectDto,
   ) {
-    await this.ensureWorkspaceOwner(ownerId, workspaceId);
+    await this.ensureWorkspaceMember(workspaceId, ownerId);
 
     return this.prisma.project.create({
       data: {
@@ -44,7 +61,7 @@ export class ProjectsService {
     workspaceId: string,
     query: FindProjectsQueryDto,
   ): Promise<PaginatedResponse<Project>> {
-    await this.ensureWorkspaceOwner(ownerId, workspaceId);
+    await this.ensureWorkspaceMember(workspaceId, ownerId);
 
     const { page = 1, limit = 10 } = query;
     const skip = (page - 1) * limit;
@@ -53,19 +70,19 @@ export class ProjectsService {
       workspaceId,
       OR: query.search
         ? [
-            {
-              name: {
-                contains: query.search,
-                mode: 'insensitive',
-              },
+          {
+            name: {
+              contains: query.search,
+              mode: 'insensitive',
             },
-            {
-              description: {
-                contains: query.search,
-                mode: 'insensitive',
-              },
+          },
+          {
+            description: {
+              contains: query.search,
+              mode: 'insensitive',
             },
-          ]
+          },
+        ]
         : undefined,
     };
 
@@ -89,12 +106,16 @@ export class ProjectsService {
     };
   }
 
-  async findOneByOwner(ownerId: string, projectId: string) {
+  async findOneByMember(userId: string, projectId: string) {
     const project = await this.prisma.project.findFirst({
       where: {
         id: projectId,
         workspace: {
-          ownerId,
+          members: {
+            some: {
+              userId,
+            },
+          },
         },
       },
     });
@@ -107,11 +128,11 @@ export class ProjectsService {
   }
 
   async update(
-    ownerId: string,
+    userId: string,
     projectId: string,
     updateProjectDto: UpdateProjectDto,
   ) {
-    await this.findOneByOwner(ownerId, projectId);
+    await this.findOneByMember(userId, projectId);
 
     return this.prisma.project.update({
       where: {
@@ -121,8 +142,8 @@ export class ProjectsService {
     });
   }
 
-  async remove(ownerId: string, projectId: string) {
-    await this.findOneByOwner(ownerId, projectId);
+  async remove(userId: string, projectId: string) {
+    await this.findOneByMember(userId, projectId);
 
     return this.prisma.project.delete({
       where: {

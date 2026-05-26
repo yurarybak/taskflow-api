@@ -48,7 +48,7 @@ export class ProjectsController {
     @GetCurrentUser() user: CurrentUser,
     @Param('projectId') projectId: string,
   ) {
-    return this.projectsService.findOneByOwner(user.id, projectId);
+    return this.projectsService.findOneByMember(user.id, projectId);
   }
 
   @Patch(':projectId')
