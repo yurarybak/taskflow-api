@@ -14,14 +14,16 @@ import type { Task } from '../../generated/prisma/client';
 export class TasksService {
   constructor(private readonly prisma: PrismaService) { }
 
-  private async ensureProjectOwner(ownerId: string, projectId: string) {
-    console.log('ownerId', ownerId);
-
+  private async ensureProjectMember(projectId: string, userId: string) {
     const project = await this.prisma.project.findFirst({
       where: {
         id: projectId,
         workspace: {
-          ownerId,
+          members: {
+            some: {
+              userId,
+            },
+          },
         },
       },
     });
@@ -38,7 +40,7 @@ export class TasksService {
     projectId: string,
     createTaskDto: CreateTaskDto,
   ) {
-    await this.ensureProjectOwner(creatorId, projectId);
+    await this.ensureProjectMember(projectId, creatorId);
 
     return this.prisma.task.create({
       data: {
@@ -60,21 +62,29 @@ export class TasksService {
     });
   }
 
-  findOneByProjectOwner(creatorId: string, taskId: string) {
+  findOneByMember(userId: string, taskId: string) {
     return this.prisma.task.findFirst({
       where: {
         id: taskId,
-        creatorId,
+        project: {
+          workspace: {
+            members: {
+              some: {
+                userId,
+              },
+            },
+          },
+        },
       },
     });
   }
 
   async findAllByProject(
-    creatorId: string,
+    userId: string,
     projectId: string,
     query: FindTasksQueryDto,
   ): Promise<PaginatedResponse<Task>> {
-    await this.ensureProjectOwner(creatorId, projectId);
+    await this.ensureProjectMember(projectId, userId);
 
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
@@ -82,7 +92,15 @@ export class TasksService {
 
     const where: Prisma.TaskWhereInput = {
       projectId,
-      creatorId,
+      project: {
+        workspace: {
+          members: {
+            some: {
+              userId,
+            },
+          },
+        },
+      },
       status: query.status,
       priority: query.priority,
       OR: query.search

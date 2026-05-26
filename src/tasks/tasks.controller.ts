@@ -56,7 +56,7 @@ export class TasksController {
     @GetCurrentUser() user: CurrentUser,
     @Param('taskId') taskId: string,
   ) {
-    return this.tasksService.findOneByProjectOwner(user.id, taskId);
+    return this.tasksService.findOneByMember(user.id, taskId);
   }
 
   @Delete(':taskId')
