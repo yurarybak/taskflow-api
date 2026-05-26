@@ -77,6 +77,22 @@ export class TasksService {
         creatorId,
         status: query.status,
         priority: query.priority,
+        OR: query.search
+          ? [
+              {
+                title: {
+                  contains: query.search,
+                  mode: 'insensitive',
+                },
+              },
+              {
+                description: {
+                  contains: query.search,
+                  mode: 'insensitive',
+                },
+              },
+            ]
+          : undefined,
       },
       orderBy: {
         createdAt: 'desc',
