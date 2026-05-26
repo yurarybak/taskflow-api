@@ -6,7 +6,7 @@ import { WorkspaceRole } from '../../generated/prisma/enums';
 
 @Injectable()
 export class WorkspacesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   create(ownerId: string, createWorkspaceDto: CreateWorkspaceDto) {
     return this.prisma.$transaction(async (tx) => {
@@ -74,6 +74,31 @@ export class WorkspacesService {
       where: {
         id: workspaceId,
         ownerId,
+      },
+    });
+  }
+
+  async findMembers(ownerId: string, workspaceId: string) {
+    await this.findOneByOwner(ownerId, workspaceId); // Ensure workspace exists and belongs to the owner
+
+    return this.prisma.workspaceMember.findMany({
+      where: {
+        workspaceId,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'asc',
       },
     });
   }

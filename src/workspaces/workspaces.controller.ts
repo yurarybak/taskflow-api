@@ -36,6 +36,14 @@ export class WorkspacesController {
     return this.workspacesService.findAllByOwner(user.id);
   }
 
+  @Get(':id/members')
+  findMembers(
+    @GetCurrentUser() user: CurrentUser,
+    @Param('id') workspaceId: string,
+  ) {
+    return this.workspacesService.findMembers(user.id, workspaceId);
+  }
+
   @Get(':id')
   findOne(
     @GetCurrentUser() user: CurrentUser,
