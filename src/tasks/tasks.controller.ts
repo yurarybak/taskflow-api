@@ -8,6 +8,7 @@ import {
   Patch,
   Get,
   Delete,
+  Query,
 } from '@nestjs/common';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -16,6 +17,7 @@ import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import type { CurrentUser } from '../auth/types/current-user.type';
+import { FindTasksQueryDto } from './dto/find-tasks-query.dto';
 
 @ApiBearerAuth()
 @Controller('projects/:projectId/tasks')
@@ -44,8 +46,9 @@ export class TasksController {
   findAll(
     @GetCurrentUser() user: CurrentUser,
     @Param('projectId') projectId: string,
+    @Query() query: FindTasksQueryDto,
   ) {
-    return this.tasksService.findAllByProject(user.id, projectId);
+    return this.tasksService.findAllByProject(user.id, projectId, query);
   }
 
   @Get(':taskId')
