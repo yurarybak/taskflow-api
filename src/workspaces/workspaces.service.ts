@@ -114,8 +114,19 @@ export class WorkspacesService {
     workspaceId: string,
     addWorkspaceMemberDto: AddWorkspaceMemberDto,
   ) {
-    // Ensure workspace exists and belongs to the owner
-    await this.findOneByOwner(ownerId, workspaceId);
+    const membership = await this.ensureWorkspaceRole(workspaceId, ownerId, [
+      WorkspaceRole.OWNER,
+      WorkspaceRole.ADMIN,
+    ]);
+
+    const role = addWorkspaceMemberDto.role ?? WorkspaceRole.MEMBER;
+
+    if (
+      membership.role === WorkspaceRole.ADMIN &&
+      role !== WorkspaceRole.MEMBER
+    ) {
+      throw new ConflictException('Admins cannot add owners to the workspace');
+    }
 
     // Find the user by email
     const member = await this.prisma.user.findUnique({
@@ -147,7 +158,7 @@ export class WorkspacesService {
       data: {
         workspaceId,
         userId: member.id,
-        role: addWorkspaceMemberDto.role || WorkspaceRole.MEMBER,
+        role,
       },
       include: {
         user: {
@@ -176,6 +187,20 @@ export class WorkspacesService {
 
     if (!membership) {
       throw new NotFoundException('Workspace member not found');
+    }
+
+    return membership;
+  }
+
+  private async ensureWorkspaceRole(
+    workspaceId: string,
+    userId: string,
+    allowedRoles: WorkspaceRole[],
+  ) {
+    const membership = await this.ensureWorkspaceMember(workspaceId, userId);
+
+    if (!allowedRoles.includes(membership.role)) {
+      throw new NotFoundException('Workspace not found');
     }
 
     return membership;
