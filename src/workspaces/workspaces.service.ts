@@ -83,8 +83,9 @@ export class WorkspacesService {
     });
   }
 
-  async findMembers(ownerId: string, workspaceId: string) {
-    await this.findOneByOwner(ownerId, workspaceId); // Ensure workspace exists and belongs to the owner
+  async findMembers(userId: string, workspaceId: string) {
+    // Ensure workspace exists and belongs to the user
+    await this.ensureWorkspaceMember(workspaceId, userId);
 
     return this.prisma.workspaceMember.findMany({
       where: {
@@ -161,5 +162,22 @@ export class WorkspacesService {
         },
       },
     });
+  }
+
+  private async ensureWorkspaceMember(workspaceId: string, userId: string) {
+    const membership = await this.prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId,
+          userId,
+        },
+      },
+    });
+
+    if (!membership) {
+      throw new NotFoundException('Workspace member not found');
+    }
+
+    return membership;
   }
 }
