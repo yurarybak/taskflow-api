@@ -16,6 +16,7 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 
 import type { JwtPayload } from './types/jwt-payload.type';
+import type { CurrentUser } from './types/current-user.type';
 
 @Injectable()
 export class AuthService {
@@ -64,7 +65,7 @@ export class AuthService {
     return this.createAuthResponse(safeUser);
   }
 
-  private async generateAccessToken(user: { id: string; email: string }) {
+  private async generateAccessToken(user: CurrentUser) {
     const payload = {
       sub: user.id,
       email: user.email,
@@ -73,7 +74,7 @@ export class AuthService {
     return this.jwtService.signAsync(payload);
   }
 
-  private async generateRefreshToken(user: { id: string; email: string }) {
+  private async generateRefreshToken(user: CurrentUser) {
     const payload = {
       sub: user.id,
       email: user.email,
@@ -118,7 +119,7 @@ export class AuthService {
     return expiresAt;
   }
 
-  private async createRefreshToken(user: { id: string; email: string }) {
+  private async createRefreshToken(user: CurrentUser) {
     const refreshToken = await this.generateRefreshToken(user);
     const tokenHash = await bcrypt.hash(refreshToken, 10);
 
@@ -248,6 +249,22 @@ export class AuthService {
         data: { revokedAt: new Date() },
       });
     }
+
+    return {
+      success: true,
+    };
+  }
+
+  async logoutAll(userId: string) {
+    await this.prisma.refreshToken.updateMany({
+      where: {
+        userId,
+        revokedAt: null,
+      },
+      data: {
+        revokedAt: new Date(),
+      },
+    });
 
     return {
       success: true,

@@ -9,6 +9,8 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 
+import type { CurrentUser } from './types/current-user.type';
+
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -26,7 +28,7 @@ export class AuthController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  getMe(@GetCurrentUser() user: { id: string; email: string }) {
+  getMe(@GetCurrentUser() user: CurrentUser) {
     return user;
   }
 
@@ -41,5 +43,13 @@ export class AuthController {
   async logout(@Body() refreshTokenDto: RefreshTokenDto) {
     // Invalidate the refresh token in the database
     return this.authService.logout(refreshTokenDto);
+  }
+
+  @Post('logout-all')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  async logoutAll(@GetCurrentUser() user: CurrentUser) {
+    // Invalidate all refresh tokens for the user in the database
+    return this.authService.logoutAll(user.id);
   }
 }
