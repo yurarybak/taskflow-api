@@ -35,12 +35,40 @@ export class TasksService {
     return project;
   }
 
+  private async ensureProjectMemberByUserId(projectId: string, userId: string) {
+    const project = await this.prisma.project.findFirst({
+      where: {
+        id: projectId,
+        workspace: {
+          members: {
+            some: {
+              userId,
+            },
+          },
+        },
+      },
+    });
+
+    if (!project) {
+      throw new NotFoundException('Assignee not found');
+    }
+
+    return project;
+  }
+
   async create(
     creatorId: string,
     projectId: string,
     createTaskDto: CreateTaskDto,
   ) {
     await this.ensureProjectMember(projectId, creatorId);
+
+    if (createTaskDto.assigneeId) {
+      await this.ensureProjectMemberByUserId(
+        projectId,
+        createTaskDto.assigneeId,
+      );
+    }
 
     return this.prisma.task.create({
       data: {
@@ -51,7 +79,12 @@ export class TasksService {
     });
   }
 
-  async update(userId: string, taskId: string, updateTaskDto: UpdateTaskDto) {
+  async update(
+    userId: string,
+    projectId: string,
+    taskId: string,
+    updateTaskDto: UpdateTaskDto,
+  ) {
     const { task, membership } = await this.getTaskWithMembership(
       taskId,
       userId,
@@ -60,6 +93,14 @@ export class TasksService {
     // Only allow deleting if the user can manage any task or if they can manage their own task
     if (!this.canManageTask(task.creatorId, userId, membership.role)) {
       throw new NotFoundException('Task not found');
+    }
+
+    // If assigneeId is being updated, ensure the new assignee is a member of the project
+    if (updateTaskDto.assigneeId) {
+      await this.ensureProjectMemberByUserId(
+        projectId,
+        updateTaskDto.assigneeId,
+      );
     }
 
     return this.prisma.task.update({

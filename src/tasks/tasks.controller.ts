@@ -65,10 +65,11 @@ export class TasksController {
   @Patch(':taskId')
   update(
     @GetCurrentUser() user: CurrentUser,
+    @Param('projectId') projectId: string,
     @Param('taskId') taskId: string,
     @Body() updateTaskDto: UpdateTaskDto,
   ) {
-    return this.tasksService.update(user.id, taskId, updateTaskDto);
+    return this.tasksService.update(user.id, projectId, taskId, updateTaskDto);
   }
 
   @ApiOperation({ summary: 'Get all tasks in a project' })

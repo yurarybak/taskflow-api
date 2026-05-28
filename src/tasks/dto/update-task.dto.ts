@@ -6,6 +6,8 @@ import {
   IsString,
   MaxLength,
   MinLength,
+  ValidateIf,
+  IsUUID,
 } from 'class-validator';
 
 import { TaskPriority, TaskStatus } from '../../../generated/prisma/enums';
@@ -57,4 +59,13 @@ export class UpdateTaskDto {
   @IsOptional()
   @IsDateString()
   dueDate?: Date;
+
+  @ApiPropertyOptional({
+    example: '8c7b7b4e-3e7a-4f90-91a5-7a4f6f7c7c10',
+    nullable: true,
+  })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null && value !== undefined)
+  @IsUUID()
+  assigneeId?: string;
 }
