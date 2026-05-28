@@ -141,6 +141,12 @@ export class TasksService {
     const limit = query.limit ?? 10;
     const skip = (page - 1) * limit;
 
+    const assigneeFilter = query.unassigned
+      ? null
+      : query.assigneeIds?.length
+        ? { in: query.assigneeIds }
+        : undefined;
+
     const where: Prisma.TaskWhereInput = {
       projectId,
       project: {
@@ -154,21 +160,22 @@ export class TasksService {
       },
       status: query.status,
       priority: query.priority,
+      assigneeId: assigneeFilter,
       OR: query.search
         ? [
-          {
-            title: {
-              contains: query.search,
-              mode: 'insensitive',
+            {
+              title: {
+                contains: query.search,
+                mode: 'insensitive',
+              },
             },
-          },
-          {
-            description: {
-              contains: query.search,
-              mode: 'insensitive',
+            {
+              description: {
+                contains: query.search,
+                mode: 'insensitive',
+              },
             },
-          },
-        ]
+          ]
         : undefined,
     };
 
