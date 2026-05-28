@@ -4,9 +4,9 @@ import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { FindProjectsQueryDto } from './dto/find-projects-query.dto';
 import { createPaginationMeta } from '../common/utils/create-pagination-meta';
+import { WorkspaceRole } from '../../generated/prisma/enums';
 
-import type { Prisma } from '../../generated/prisma/client';
-import type { Project } from '../../generated/prisma/client';
+import type { Prisma, Project } from '../../generated/prisma/client';
 import type { PaginatedResponse } from '../common/types/paginated-response.type';
 @Injectable()
 export class ProjectsService {
@@ -34,7 +34,10 @@ export class ProjectsService {
     workspaceId: string,
     createProjectDto: CreateProjectDto,
   ) {
-    await this.ensureWorkspaceMember(workspaceId, ownerId);
+    await this.ensureWorkspaceRole(workspaceId, ownerId, [
+      WorkspaceRole.OWNER,
+      WorkspaceRole.ADMIN,
+    ]);
 
     return this.prisma.project.create({
       data: {
@@ -120,7 +123,10 @@ export class ProjectsService {
     projectId: string,
     updateProjectDto: UpdateProjectDto,
   ) {
-    await this.findOneByMember(userId, projectId);
+    await this.ensureProjectWorkspaceRole(projectId, userId, [
+      WorkspaceRole.OWNER,
+      WorkspaceRole.ADMIN,
+    ]);
 
     return this.prisma.project.update({
       where: {
@@ -131,12 +137,57 @@ export class ProjectsService {
   }
 
   async remove(userId: string, projectId: string) {
-    await this.findOneByMember(userId, projectId);
+    await this.ensureProjectWorkspaceRole(projectId, userId, [
+      WorkspaceRole.OWNER,
+      WorkspaceRole.ADMIN,
+    ]);
 
     return this.prisma.project.delete({
       where: {
         id: projectId,
       },
     });
+  }
+
+  private async ensureWorkspaceRole(
+    workspaceId: string,
+    userId: string,
+    allowedRoles: WorkspaceRole[],
+  ) {
+    const membership = await this.ensureWorkspaceMember(workspaceId, userId);
+
+    if (!allowedRoles.includes(membership.role)) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    return membership;
+  }
+
+  private async ensureProjectWorkspaceRole(
+    projectId: string,
+    userId: string,
+    allowedRoles: WorkspaceRole[],
+  ) {
+    const project = await this.prisma.project.findFirst({
+      where: {
+        id: projectId,
+        workspace: {
+          members: {
+            some: {
+              userId,
+              role: {
+                in: allowedRoles,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    return project;
   }
 }
