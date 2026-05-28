@@ -6,6 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import type { StringValue } from 'ms';
 
 import { UsersService } from '../users/users.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -56,13 +57,6 @@ export class AuthService {
       throw new ConflictException('Invalid credentials');
     }
 
-    const payload = {
-      sub: user.id,
-      email: user.email,
-    };
-
-    const accessToken = await this.jwtService.signAsync(payload);
-
     const { password, ...safeUser } = user;
 
     return this.createAuthResponse(safeUser);
@@ -85,7 +79,7 @@ export class AuthService {
 
     return this.jwtService.signAsync(payload, {
       secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
-      expiresIn: this.configService.getOrThrow<string>(
+      expiresIn: this.configService.getOrThrow<StringValue>(
         'JWT_REFRESH_EXPIRES_IN',
       ),
     });
