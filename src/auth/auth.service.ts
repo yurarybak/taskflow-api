@@ -213,4 +213,44 @@ export class AuthService {
     }
     return null;
   }
+
+  async logout(refreshTokenDto: RefreshTokenDto) {
+    let payload: JwtPayload;
+
+    try {
+      payload = await this.jwtService.verifyAsync<JwtPayload>(
+        refreshTokenDto.refreshToken,
+        {
+          secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
+        },
+      );
+    } catch {
+      return {
+        success: true,
+      };
+    }
+
+    const refreshTokens = await this.prisma.refreshToken.findMany({
+      where: {
+        userId: payload.sub,
+        revokedAt: null,
+      },
+    });
+
+    const matchingToken = this.findMatchingRefreshToken(
+      refreshTokenDto.refreshToken,
+      refreshTokens,
+    );
+
+    if (matchingToken) {
+      await this.prisma.refreshToken.update({
+        where: { id: matchingToken.id },
+        data: { revokedAt: new Date() },
+      });
+    }
+
+    return {
+      success: true,
+    };
+  }
 }

@@ -34,4 +34,12 @@ export class AuthController {
   async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
     return this.authService.refreshToken(refreshTokenDto);
   }
+
+  @Post('logout')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  async logout(@Body() refreshTokenDto: RefreshTokenDto) {
+    // Invalidate the refresh token in the database
+    return this.authService.logout(refreshTokenDto);
+  }
 }
