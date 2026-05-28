@@ -17,6 +17,7 @@ import type { CurrentUser } from '../auth/types/current-user.type';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { AddWorkspaceMemberDto } from './dto/add-workspace-member.dto';
+import { UpdateWorkspaceMemberDto } from './dto/update-workspace-member.dto';
 
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -55,6 +56,21 @@ export class WorkspacesController {
       user.id,
       workspaceId,
       addWorkspaceMemberDto,
+    );
+  }
+
+  @Patch(':id/members/:memberId')
+  updateMember(
+    @GetCurrentUser() user: CurrentUser,
+    @Param('id') workspaceId: string,
+    @Param('memberId') memberId: string,
+    @Body() updateWorkspaceMemberDto: UpdateWorkspaceMemberDto,
+  ) {
+    return this.workspacesService.updateMember(
+      user.id,
+      workspaceId,
+      memberId,
+      updateWorkspaceMemberDto,
     );
   }
 

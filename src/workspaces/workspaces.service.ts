@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { AddWorkspaceMemberDto } from './dto/add-workspace-member.dto';
+import { UpdateWorkspaceMemberDto } from './dto/update-workspace-member.dto';
 import { WorkspaceRole } from '../../generated/prisma/enums';
 
 @Injectable()
@@ -206,5 +207,58 @@ export class WorkspacesService {
     }
 
     return membership;
+  }
+
+  async updateMember(
+    userId: string,
+    workspaceId: string,
+    memberId: string,
+    updateWorkspaceMemberDto: UpdateWorkspaceMemberDto,
+  ) {
+    // Only owners can update member roles
+    await this.ensureWorkspaceRole(workspaceId, userId, [WorkspaceRole.OWNER]);
+
+    // Check if the member exists and belongs to the workspace
+    const member = await this.prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId,
+          userId: memberId,
+        },
+      },
+    });
+
+    if (!member) {
+      throw new NotFoundException('Workspace member not found');
+    }
+
+    if (member.role === WorkspaceRole.OWNER) {
+      throw new ConflictException('Cannot change role of the owner');
+    }
+
+    // Update the member's role
+    return this.prisma.workspaceMember.update({
+      where: {
+        workspaceId_userId: {
+          workspaceId,
+          userId: memberId,
+        },
+      },
+      data: {
+        role: updateWorkspaceMemberDto.role,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+      },
+    });
   }
 }
