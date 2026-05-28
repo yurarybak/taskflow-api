@@ -25,6 +25,7 @@ model User {
   ownedWorkspaces Workspace[]
   workspaceMemberships WorkspaceMember[]
   createdTasks    Task[]
+  refreshTokens   RefreshToken[]
 
   @@map("users")
 }
@@ -69,7 +70,6 @@ enum TaskPriority {
   MEDIUM
   HIGH
 }
-
 model Task {
   id          String       @id @default(uuid())
   title       String
@@ -107,4 +107,18 @@ model WorkspaceMember {
 
   @@unique([workspaceId, userId])
   @@map("workspace_members")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
 }
