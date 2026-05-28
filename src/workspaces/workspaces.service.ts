@@ -261,4 +261,47 @@ export class WorkspacesService {
       },
     });
   }
+
+  async removeMember(userId: string, workspaceId: string, memberId: string) {
+    const requesterMembership = await this.ensureWorkspaceRole(
+      workspaceId,
+      userId,
+      [WorkspaceRole.OWNER, WorkspaceRole.ADMIN],
+    );
+
+    const member = await this.prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId,
+          userId: memberId,
+        },
+      },
+    });
+
+    if (!member) {
+      throw new NotFoundException('Workspace member not found');
+    }
+
+    if (member.role === WorkspaceRole.OWNER) {
+      throw new ConflictException('Cannot remove the owner from the workspace');
+    }
+
+    if (
+      requesterMembership.role === WorkspaceRole.ADMIN &&
+      member.role !== WorkspaceRole.MEMBER
+    ) {
+      throw new ConflictException(
+        'Admins cannot remove other admins or the owner from the workspace',
+      );
+    }
+
+    return this.prisma.workspaceMember.delete({
+      where: {
+        workspaceId_userId: {
+          workspaceId,
+          userId: memberId,
+        },
+      },
+    });
+  }
 }

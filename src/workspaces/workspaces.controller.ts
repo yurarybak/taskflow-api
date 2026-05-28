@@ -74,6 +74,15 @@ export class WorkspacesController {
     );
   }
 
+  @Delete(':id/members/:memberId')
+  removeMember(
+    @GetCurrentUser() user: CurrentUser,
+    @Param('id') workspaceId: string,
+    @Param('memberId') memberId: string,
+  ) {
+    return this.workspacesService.removeMember(user.id, workspaceId, memberId);
+  }
+
   @Get(':id')
   findOne(
     @GetCurrentUser() user: CurrentUser,
