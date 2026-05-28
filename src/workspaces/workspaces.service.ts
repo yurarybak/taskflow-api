@@ -12,7 +12,7 @@ import { WorkspaceRole } from '../../generated/prisma/enums';
 
 @Injectable()
 export class WorkspacesService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   create(ownerId: string, createWorkspaceDto: CreateWorkspaceDto) {
     return this.prisma.$transaction(async (tx) => {
