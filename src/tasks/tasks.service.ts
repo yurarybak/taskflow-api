@@ -273,4 +273,26 @@ export class TasksService {
 
     return canManageAnyTask || canManageOwnTask;
   }
+
+  async assign(
+    userId: string,
+    projectId: string,
+    taskId: string,
+    assigneeId: string | null,
+  ) {
+    await this.ensureProjectMember(projectId, userId);
+
+    if (assigneeId) {
+      await this.ensureProjectMemberByUserId(projectId, assigneeId);
+    }
+
+    return this.prisma.task.update({
+      where: {
+        id: taskId,
+      },
+      data: {
+        assigneeId,
+      },
+    });
+  }
 }

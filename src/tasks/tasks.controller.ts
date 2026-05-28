@@ -28,6 +28,7 @@ import { UpdateTaskDto } from './dto/update-task.dto';
 import { FindTasksQueryDto } from './dto/find-tasks-query.dto';
 import { PaginatedTasksResponseDto } from './dto/responses/paginated-tasks-response.dto';
 import { TaskResponseDto } from './dto/responses/task-response.dto';
+import { AssignTaskDto } from './dto/assign-task.dto';
 
 @ApiBearerAuth()
 @Controller('projects/:projectId/tasks')
@@ -120,5 +121,30 @@ export class TasksController {
   @Delete(':taskId')
   remove(@GetCurrentUser() user: CurrentUser, @Param('taskId') taskId: string) {
     return this.tasksService.remove(user.id, taskId);
+  }
+
+  @ApiOperation({ summary: 'Assign or unassign a task to a user' })
+  @ApiOkResponse({
+    type: TaskResponseDto,
+    description: 'The task has been successfully updated with the new assignee',
+  })
+  @ApiConflictResponse({
+    description:
+      'Task not found, user is not a member of the project, or insufficient permissions',
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @Patch(':id/assign')
+  assign(
+    @GetCurrentUser() user: CurrentUser,
+    @Param('projectId') projectId: string,
+    @Param('id') taskId: string,
+    @Body() assignTaskDto: AssignTaskDto,
+  ) {
+    return this.tasksService.assign(
+      user.id,
+      projectId,
+      taskId,
+      assignTaskDto.assigneeId,
+    );
   }
 }
