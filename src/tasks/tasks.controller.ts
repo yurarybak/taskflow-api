@@ -23,7 +23,7 @@ import { FindTasksQueryDto } from './dto/find-tasks-query.dto';
 @Controller('projects/:projectId/tasks')
 @UseGuards(JwtAuthGuard)
 export class TasksController {
-  constructor(private readonly tasksService: TasksService) {}
+  constructor(private readonly tasksService: TasksService) { }
 
   @Post()
   create(
@@ -36,10 +36,11 @@ export class TasksController {
 
   @Patch(':taskId')
   update(
+    @GetCurrentUser() user: CurrentUser,
     @Param('taskId') taskId: string,
     @Body() updateTaskDto: UpdateTaskDto,
   ) {
-    return this.tasksService.update(taskId, updateTaskDto);
+    return this.tasksService.update(user.id, taskId, updateTaskDto);
   }
 
   @Get()
@@ -60,7 +61,7 @@ export class TasksController {
   }
 
   @Delete(':taskId')
-  remove(@Param('taskId') taskId: string) {
-    return this.tasksService.remove(taskId);
+  remove(@GetCurrentUser() user: CurrentUser, @Param('taskId') taskId: string) {
+    return this.tasksService.remove(user.id, taskId);
   }
 }

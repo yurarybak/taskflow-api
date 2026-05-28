@@ -5,10 +5,10 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { FindTasksQueryDto } from './dto/find-tasks-query.dto';
 import { createPaginationMeta } from '../common/utils/create-pagination-meta';
+import { WorkspaceRole } from '../../generated/prisma/enums';
 
-import type { Prisma } from '../../generated/prisma/client';
+import type { Prisma, Task } from '../../generated/prisma/client';
 import type { PaginatedResponse } from '../common/types/paginated-response.type';
-import type { Task } from '../../generated/prisma/client';
 
 @Injectable()
 export class TasksService {
@@ -51,7 +51,17 @@ export class TasksService {
     });
   }
 
-  update(taskId: string, updateTaskDto: UpdateTaskDto) {
+  async update(userId: string, taskId: string, updateTaskDto: UpdateTaskDto) {
+    const { task, membership } = await this.getTaskWithMembership(
+      taskId,
+      userId,
+    );
+
+    // Only allow deleting if the user can manage any task or if they can manage their own task
+    if (!this.canManageTask(task.creatorId, userId, membership.role)) {
+      throw new NotFoundException('Task not found');
+    }
+
     return this.prisma.task.update({
       where: {
         id: taskId,
@@ -105,19 +115,19 @@ export class TasksService {
       priority: query.priority,
       OR: query.search
         ? [
-            {
-              title: {
-                contains: query.search,
-                mode: 'insensitive',
-              },
+          {
+            title: {
+              contains: query.search,
+              mode: 'insensitive',
             },
-            {
-              description: {
-                contains: query.search,
-                mode: 'insensitive',
-              },
+          },
+          {
+            description: {
+              contains: query.search,
+              mode: 'insensitive',
             },
-          ]
+          },
+        ]
         : undefined,
     };
 
@@ -141,11 +151,85 @@ export class TasksService {
     };
   }
 
-  remove(taskId: string) {
+  async remove(userId: string, taskId: string) {
+    const { task, membership } = await this.getTaskWithMembership(
+      taskId,
+      userId,
+    );
+
+    // Only allow deleting if the user can manage any task or if they can manage their own task
+    if (!this.canManageTask(task.creatorId, userId, membership.role)) {
+      throw new NotFoundException('Task not found');
+    }
+
     return this.prisma.task.delete({
       where: {
         id: taskId,
       },
     });
+  }
+
+  private async getTaskWithMembership(taskId: string, userId: string) {
+    const task = await this.prisma.task.findFirst({
+      where: {
+        id: taskId,
+        project: {
+          workspace: {
+            members: {
+              some: {
+                userId,
+              },
+            },
+          },
+        },
+      },
+      include: {
+        project: {
+          include: {
+            workspace: {
+              include: {
+                members: {
+                  where: {
+                    userId,
+                  },
+                  select: {
+                    id: true,
+                    role: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    const membership = task.project.workspace.members[0];
+
+    if (!membership) {
+      throw new NotFoundException('Membership not found');
+    }
+
+    return {
+      task,
+      membership,
+    };
+  }
+
+  private canManageTask(
+    creatorId: string,
+    userId: string,
+    role: WorkspaceRole,
+  ) {
+    const canManageAnyTask =
+      role === WorkspaceRole.OWNER || role === WorkspaceRole.ADMIN;
+
+    const canManageOwnTask = creatorId === userId;
+
+    return canManageAnyTask || canManageOwnTask;
   }
 }
