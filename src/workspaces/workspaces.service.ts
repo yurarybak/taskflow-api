@@ -74,7 +74,9 @@ export class WorkspacesService {
     });
   }
 
-  remove(ownerId: string, workspaceId: string) {
+  async remove(ownerId: string, workspaceId: string) {
+    await this.ensureWorkspaceRole(workspaceId, ownerId, [WorkspaceRole.OWNER]);
+
     return this.prisma.workspace.delete({
       where: {
         id: workspaceId,
