@@ -1,7 +1,7 @@
 import {
   ConflictException,
   Injectable,
-  // UnauthorizedException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -13,7 +13,9 @@ import { PrismaService } from '../prisma/prisma.service';
 
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-// import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
+
+import type { JwtPayload } from './types/jwt-payload.type';
 
 @Injectable()
 export class AuthService {
@@ -149,5 +151,66 @@ export class AuthService {
       refreshToken,
       user,
     };
+  }
+
+  async refreshToken(refreshTokenDto: RefreshTokenDto) {
+    let payload: JwtPayload;
+
+    try {
+      payload = await this.jwtService.verifyAsync<JwtPayload>(
+        refreshTokenDto.refreshToken,
+        {
+          secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
+        },
+      );
+    } catch {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const refreshTokens = await this.prisma.refreshToken.findMany({
+      where: {
+        userId: payload.sub,
+        revokedAt: null,
+        expiresAt: {
+          gt: new Date(),
+        },
+      },
+    });
+
+    const matchingToken = this.findMatchingRefreshToken(
+      refreshTokenDto.refreshToken,
+      refreshTokens,
+    );
+
+    if (!matchingToken) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    await this.prisma.refreshToken.update({
+      where: { id: matchingToken.id },
+      data: { revokedAt: new Date() },
+    });
+
+    const user = await this.usersService.findByEmail(payload.email);
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const { password, ...safeUser } = user;
+
+    return this.createAuthResponse(safeUser);
+  }
+
+  private findMatchingRefreshToken(
+    refreshToken: string,
+    refreshTokens: { id: string; tokenHash: string }[],
+  ) {
+    for (const storedRefreshToken of refreshTokens) {
+      if (bcrypt.compareSync(refreshToken, storedRefreshToken.tokenHash)) {
+        return storedRefreshToken;
+      }
+    }
+    return null;
   }
 }
