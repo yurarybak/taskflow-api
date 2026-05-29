@@ -26,6 +26,7 @@ import { UpdateProjectDto } from './dto/update-project.dto';
 import { FindProjectsQueryDto } from './dto/find-projects-query.dto';
 import { ProjectResponseDto } from './dto/responses/project-response.dto';
 import { PaginatedProjectsResponseDto } from './dto/responses/paginated-projects-response.dto';
+import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
 
 import type { CurrentUser } from '../auth/types/current-user.type';
 
@@ -100,16 +101,20 @@ export class ProjectsController {
 
   @ApiOperation({ summary: 'Delete a project by ID' })
   @ApiOkResponse({
-    type: ProjectResponseDto,
+    type: SuccessResponseDto,
     description: 'Project deleted successfully',
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   @ApiNotFoundResponse({ description: 'Project not found' })
   @Delete(':projectId')
-  remove(
+  async remove(
     @GetCurrentUser() user: CurrentUser,
     @Param('projectId') projectId: string,
   ) {
-    return this.projectsService.remove(user.id, projectId);
+    await this.projectsService.remove(user.id, projectId);
+
+    return {
+      success: true,
+    };
   }
 }

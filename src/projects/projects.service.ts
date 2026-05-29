@@ -142,7 +142,7 @@ export class ProjectsService {
       WorkspaceRole.ADMIN,
     ]);
 
-    return this.prisma.project.delete({
+    await this.prisma.project.delete({
       where: {
         id: projectId,
       },
