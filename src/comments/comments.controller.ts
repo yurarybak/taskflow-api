@@ -1,4 +1,11 @@
-import { Controller, UseGuards, Post, Body, Param } from '@nestjs/common';
+import {
+  Controller,
+  UseGuards,
+  Post,
+  Body,
+  Param,
+  Patch,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -13,6 +20,7 @@ import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { CommentResponseDto } from './dto/response/comment-response.dto';
+import { UpdateCommentDto } from './dto/update-comment.dto';
 
 import type { CurrentUser } from '../auth/types/current-user.type';
 
@@ -38,5 +46,23 @@ export class CommentsController {
     @Body() createCommentDto: CreateCommentDto,
   ) {
     return this.commentsService.create(user.id, taskId, createCommentDto);
+  }
+
+  @ApiOperation({ summary: 'Update an existing comment on a task' })
+  @ApiCreatedResponse({
+    type: CommentResponseDto,
+    description: 'The comment has been successfully updated',
+  })
+  @ApiNotFoundResponse({
+    description: 'Comment not found or user is not the author',
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @Patch(':commentId')
+  update(
+    @GetCurrentUser() user: CurrentUser,
+    @Param('commentId') commentId: string,
+    @Body() updateCommentDto: UpdateCommentDto,
+  ) {
+    return this.commentsService.update(user.id, commentId, updateCommentDto);
   }
 }
