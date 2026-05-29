@@ -17,7 +17,7 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { AuthResponseDto } from './dto/responses/auth-response.dto';
 import { AuthUserResponseDto } from './dto/responses/auth-user-response.dto';
-import { SuccessResponseDto } from './dto/responses/success-response.dto';
+import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
 
 import type { CurrentUser } from './types/current-user.type';
 

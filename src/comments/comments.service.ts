@@ -100,6 +100,26 @@ export class CommentsService {
     };
   }
 
+  private getCommentResponse(id: string) {
+    return this.prisma.taskComment.findUnique({
+      where: {
+        id,
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+      },
+    });
+  }
+
   async create(
     userId: string,
     taskId: string,
@@ -161,7 +181,9 @@ export class CommentsService {
   }
 
   async getComment(commentId: string, userId: string) {
-    const { comment } = await this.getCommentWithMembership(commentId, userId);
+    await this.getCommentWithMembership(commentId, userId);
+
+    const comment = await this.getCommentResponse(commentId);
 
     return comment;
   }
@@ -181,10 +203,14 @@ export class CommentsService {
       throw new NotFoundException('Comment not found');
     }
 
-    return this.prisma.taskComment.delete({
+    await this.prisma.taskComment.delete({
       where: {
         id: commentId,
       },
     });
+
+    return {
+      success: true,
+    };
   }
 }

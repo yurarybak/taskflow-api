@@ -23,6 +23,7 @@ import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { CommentResponseDto } from './dto/response/comment-response.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
+import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
 
 import type { CurrentUser } from '../auth/types/current-user.type';
 
@@ -87,8 +88,8 @@ export class CommentsController {
 
   @ApiOperation({ summary: 'Delete a comment by its ID' })
   @ApiCreatedResponse({
-    type: CommentResponseDto,
     description: 'The comment has been successfully deleted',
+    type: SuccessResponseDto,
   })
   @ApiNotFoundResponse({
     description: 'Comment not found or user is not the author',
