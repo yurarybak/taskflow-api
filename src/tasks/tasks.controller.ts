@@ -29,6 +29,7 @@ import { FindTasksQueryDto } from './dto/find-tasks-query.dto';
 import { PaginatedTasksResponseDto } from './dto/responses/paginated-tasks-response.dto';
 import { TaskResponseDto } from './dto/responses/task-response.dto';
 import { AssignTaskDto } from './dto/assign-task.dto';
+import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
 
 @ApiBearerAuth()
 @Controller('projects/:projectId/tasks')
@@ -110,7 +111,7 @@ export class TasksController {
 
   @ApiOperation({ summary: 'Delete a task' })
   @ApiOkResponse({
-    type: TaskResponseDto,
+    type: SuccessResponseDto,
     description: 'The task has been successfully deleted',
   })
   @ApiConflictResponse({
@@ -119,8 +120,15 @@ export class TasksController {
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   @Delete(':taskId')
-  remove(@GetCurrentUser() user: CurrentUser, @Param('taskId') taskId: string) {
-    return this.tasksService.remove(user.id, taskId);
+  async remove(
+    @GetCurrentUser() user: CurrentUser,
+    @Param('taskId') taskId: string,
+  ) {
+    await this.tasksService.remove(user.id, taskId);
+
+    return {
+      success: true,
+    };
   }
 
   @ApiOperation({ summary: 'Assign or unassign a task to a user' })

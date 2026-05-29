@@ -210,7 +210,7 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    return this.prisma.task.delete({
+    await this.prisma.task.delete({
       where: {
         id: taskId,
       },
