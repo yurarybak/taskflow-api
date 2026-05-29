@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { WorkspaceRole } from '../../generated/prisma/enums';
 
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
@@ -44,6 +45,59 @@ export class CommentsService {
     }
 
     return comment;
+  }
+
+  private async getCommentWithMembership(commentId: string, userId: string) {
+    const comment = await this.prisma.taskComment.findFirst({
+      where: {
+        id: commentId,
+        task: {
+          project: {
+            workspace: {
+              members: {
+                some: {
+                  userId,
+                },
+              },
+            },
+          },
+        },
+      },
+      include: {
+        task: {
+          include: {
+            project: {
+              include: {
+                workspace: {
+                  include: {
+                    members: {
+                      where: {
+                        userId,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!comment) {
+      throw new NotFoundException('Comment not found');
+    }
+
+    const membership = comment.task.project.workspace.members[0];
+
+    if (!membership) {
+      throw new NotFoundException('Comment not found');
+    }
+
+    return {
+      comment,
+      membership,
+    };
   }
 
   async create(
@@ -102,6 +156,34 @@ export class CommentsService {
             updatedAt: true,
           },
         },
+      },
+    });
+  }
+
+  async getComment(commentId: string, userId: string) {
+    const { comment } = await this.getCommentWithMembership(commentId, userId);
+
+    return comment;
+  }
+
+  async delete(userId: string, commentId: string) {
+    const { comment, membership } = await this.getCommentWithMembership(
+      commentId,
+      userId,
+    );
+
+    // Owners and admins can delete any comment, while members can only delete their own comments
+    const canDeleteAnyComment =
+      membership.role === WorkspaceRole.OWNER ||
+      membership.role === WorkspaceRole.ADMIN;
+
+    if (!canDeleteAnyComment && comment.authorId !== userId) {
+      throw new NotFoundException('Comment not found');
+    }
+
+    return this.prisma.taskComment.delete({
+      where: {
+        id: commentId,
       },
     });
   }

@@ -5,6 +5,8 @@ import {
   Body,
   Param,
   Patch,
+  Get,
+  Delete,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -64,5 +66,39 @@ export class CommentsController {
     @Body() updateCommentDto: UpdateCommentDto,
   ) {
     return this.commentsService.update(user.id, commentId, updateCommentDto);
+  }
+
+  @ApiOperation({ summary: 'Get a comment by its ID' })
+  @ApiCreatedResponse({
+    type: CommentResponseDto,
+    description: 'The comment has been successfully retrieved',
+  })
+  @ApiNotFoundResponse({
+    description: 'Comment not found or user is not a member of the task',
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @Get(':commentId')
+  getComment(
+    @GetCurrentUser() user: CurrentUser,
+    @Param('commentId') commentId: string,
+  ) {
+    return this.commentsService.getComment(commentId, user.id);
+  }
+
+  @ApiOperation({ summary: 'Delete a comment by its ID' })
+  @ApiCreatedResponse({
+    type: CommentResponseDto,
+    description: 'The comment has been successfully deleted',
+  })
+  @ApiNotFoundResponse({
+    description: 'Comment not found or user is not the author',
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @Delete(':commentId')
+  delete(
+    @GetCurrentUser() user: CurrentUser,
+    @Param('commentId') commentId: string,
+  ) {
+    return this.commentsService.delete(user.id, commentId);
   }
 }
