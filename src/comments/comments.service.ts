@@ -208,9 +208,5 @@ export class CommentsService {
         id: commentId,
       },
     });
-
-    return {
-      success: true,
-    };
   }
 }

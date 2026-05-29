@@ -96,10 +96,14 @@ export class CommentsController {
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   @Delete(':commentId')
-  delete(
+  async delete(
     @GetCurrentUser() user: CurrentUser,
     @Param('commentId') commentId: string,
   ) {
-    return this.commentsService.delete(user.id, commentId);
+    await this.commentsService.delete(user.id, commentId);
+
+    return {
+      success: true,
+    };
   }
 }
