@@ -29,12 +29,13 @@ import { UpdateWorkspaceMemberDto } from './dto/update-workspace-member.dto';
 import { PaginatedWorkspacesResponseDto } from './dto/responses/paginated-workspaces-response.dto';
 import { WorkspaceResponseDto } from './dto/responses/workspace-response.dto';
 import { WorkspaceMemberResponseDto } from './dto/responses/workspace-member-response.dto';
+import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
 
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('workspaces')
 export class WorkspacesController {
-  constructor(private readonly workspacesService: WorkspacesService) { }
+  constructor(private readonly workspacesService: WorkspacesService) {}
 
   @ApiOperation({ summary: 'Create a new workspace' })
   @ApiCreatedResponse({
@@ -122,18 +123,22 @@ export class WorkspacesController {
 
   @ApiOperation({ summary: 'Remove a member from a workspace' })
   @ApiOkResponse({
-    type: WorkspaceMemberResponseDto,
+    type: SuccessResponseDto,
     description: 'Member removed successfully',
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   @ApiNotFoundResponse({ description: 'Workspace or member not found' })
   @Delete(':id/members/:memberId')
-  removeMember(
+  async removeMember(
     @GetCurrentUser() user: CurrentUser,
     @Param('id') workspaceId: string,
     @Param('memberId') memberId: string,
   ) {
-    return this.workspacesService.removeMember(user.id, workspaceId, memberId);
+    await this.workspacesService.removeMember(user.id, workspaceId, memberId);
+
+    return {
+      success: true,
+    };
   }
 
   @ApiOperation({ summary: 'Get a specific workspace by ID' })
@@ -173,16 +178,20 @@ export class WorkspacesController {
 
   @ApiOperation({ summary: 'Delete a workspace by ID' })
   @ApiOkResponse({
-    type: WorkspaceResponseDto,
+    type: SuccessResponseDto,
     description: 'Workspace deleted successfully',
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   @ApiNotFoundResponse({ description: 'Workspace not found' })
   @Delete(':id')
-  remove(
+  async remove(
     @GetCurrentUser() user: CurrentUser,
     @Param('id') workspaceId: string,
   ) {
-    return this.workspacesService.remove(user.id, workspaceId);
+    await this.workspacesService.remove(user.id, workspaceId);
+
+    return {
+      success: true,
+    };
   }
 }
