@@ -18,12 +18,14 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { AuthResponseDto } from './dto/responses/auth-response.dto';
 import { AuthUserResponseDto } from './dto/responses/auth-user-response.dto';
 import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 import type { CurrentUser } from './types/current-user.type';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(private readonly authService: AuthService) {}
 
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
@@ -87,6 +89,27 @@ export class AuthController {
   async logoutAll(@GetCurrentUser() user: CurrentUser) {
     // Invalidate all refresh tokens for the user in the database
     await this.authService.logoutAll(user.id);
+    return {
+      success: true,
+    };
+  }
+
+  @ApiOperation({ summary: 'Request password reset' })
+  @ApiOkResponse({ type: SuccessResponseDto })
+  @Post('forgot-password')
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    await this.authService.forgotPassword(forgotPasswordDto);
+    return {
+      success: true,
+    };
+  }
+
+  @ApiOperation({ summary: 'Reset password using token' })
+  @ApiOkResponse({ type: SuccessResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Invalid or expired token' })
+  @Post('reset-password')
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    await this.authService.resetPassword(resetPasswordDto);
     return {
       success: true,
     };

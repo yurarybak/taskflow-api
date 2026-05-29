@@ -2,6 +2,7 @@ import {
   ConflictException,
   Injectable,
   UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -10,13 +11,17 @@ import type { StringValue } from 'ms';
 
 import { UsersService } from '../users/users.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { EmailService } from 'src/email/email.service';
 
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 import type { JwtPayload } from './types/jwt-payload.type';
 import type { CurrentUser } from './types/current-user.type';
+import type { PasswordResetPayload } from './types/password-reset-payload.type';
 
 @Injectable()
 export class AuthService {
@@ -25,7 +30,8 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
-  ) {}
+    private readonly emailService: EmailService,
+  ) { }
 
   async register(registerDto: RegisterDto) {
     const existingUser = await this.usersService.findByEmail(registerDto.email);
@@ -84,6 +90,23 @@ export class AuthService {
       secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
       expiresIn: this.configService.getOrThrow<StringValue>(
         'JWT_REFRESH_EXPIRES_IN',
+      ),
+    });
+  }
+
+  private async generateResetPasswordToken(user: CurrentUser) {
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      purpose: 'password_reset',
+    };
+
+    return this.jwtService.signAsync(payload, {
+      secret: this.configService.getOrThrow<string>(
+        'JWT_RESET_PASSWORD_SECRET',
+      ),
+      expiresIn: this.configService.getOrThrow<StringValue>(
+        'JWT_RESET_PASSWORD_EXPIRES_IN',
       ),
     });
   }
@@ -259,5 +282,76 @@ export class AuthService {
         revokedAt: new Date(),
       },
     });
+  }
+
+  async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+    const user = await this.usersService.findByEmail(forgotPasswordDto.email);
+
+    if (!user) {
+      return;
+    }
+
+    const resetToken = await this.generateResetPasswordToken(user);
+
+    this.emailService.sendPasswordResetEmail(user.email, resetToken);
+  }
+
+  async resetPassword(resetPasswordDto: ResetPasswordDto) {
+    let payload: PasswordResetPayload;
+
+    try {
+      payload = await this.jwtService.verifyAsync<PasswordResetPayload>(
+        resetPasswordDto.token,
+        {
+          secret: this.configService.getOrThrow<StringValue>(
+            'JWT_RESET_PASSWORD_SECRET',
+          ),
+        },
+      );
+    } catch {
+      throw new UnauthorizedException('Invalid or expired token');
+    }
+
+    if (payload.purpose !== 'password_reset') {
+      throw new UnauthorizedException('Invalid reset token');
+    }
+
+    const user = await this.usersService.findByEmail(payload.email);
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const isSamePassword = await bcrypt.compare(
+      resetPasswordDto.newPassword,
+      user.password,
+    );
+
+    if (isSamePassword) {
+      throw new BadRequestException(
+        'New password must be different from the current password',
+      );
+    }
+
+    const hashedPassword = await bcrypt.hash(resetPasswordDto.newPassword, 10);
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: {
+          id: user.id,
+        },
+        data: {
+          password: hashedPassword,
+        },
+      }),
+      this.prisma.refreshToken.updateMany({
+        where: {
+          userId: user.id,
+        },
+        data: {
+          revokedAt: new Date(),
+        },
+      }),
+    ]);
   }
 }
