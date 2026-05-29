@@ -31,6 +31,21 @@ export class CommentsService {
     return task;
   }
 
+  private async ensureCommentAuthor(commentId: string, userId: string) {
+    const comment = await this.prisma.taskComment.findFirst({
+      where: {
+        id: commentId,
+        authorId: userId,
+      },
+    });
+
+    if (!comment) {
+      throw new NotFoundException('Comment not found');
+    }
+
+    return comment;
+  }
+
   async create(
     userId: string,
     taskId: string,
@@ -66,7 +81,7 @@ export class CommentsService {
     commentId: string,
     updateCommentDto: UpdateCommentDto,
   ) {
-    await this.ensureTaskMember(commentId, userId);
+    await this.ensureCommentAuthor(commentId, userId);
 
     return this.prisma.taskComment.update({
       where: {
