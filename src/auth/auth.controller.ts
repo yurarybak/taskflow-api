@@ -70,7 +70,10 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   async logout(@Body() refreshTokenDto: RefreshTokenDto) {
     // Invalidate the refresh token in the database
-    return this.authService.logout(refreshTokenDto);
+    await this.authService.logout(refreshTokenDto);
+    return {
+      success: true,
+    };
   }
 
   @ApiOperation({
@@ -83,6 +86,9 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   async logoutAll(@GetCurrentUser() user: CurrentUser) {
     // Invalidate all refresh tokens for the user in the database
-    return this.authService.logoutAll(user.id);
+    await this.authService.logoutAll(user.id);
+    return {
+      success: true,
+    };
   }
 }

@@ -226,9 +226,7 @@ export class AuthService {
         },
       );
     } catch {
-      return {
-        success: true,
-      };
+      return;
     }
 
     const refreshTokens = await this.prisma.refreshToken.findMany({
@@ -249,10 +247,6 @@ export class AuthService {
         data: { revokedAt: new Date() },
       });
     }
-
-    return {
-      success: true,
-    };
   }
 
   async logoutAll(userId: string) {
@@ -265,9 +259,5 @@ export class AuthService {
         revokedAt: new Date(),
       },
     });
-
-    return {
-      success: true,
-    };
   }
 }
