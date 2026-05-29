@@ -1,7 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 import { UpdateUserDto } from './dto/update-user.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 type CreateUserInput = {
   email: string;
@@ -42,5 +48,53 @@ export class UsersService {
       },
       data: updateUserDto,
     });
+  }
+
+  async changePassword(id: string, changePasswordDto: ChangePasswordDto) {
+    const user = await this.findById(id);
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const { currentPassword, newPassword } = changePasswordDto;
+
+    const isPasswordValid = await bcrypt.compare(
+      currentPassword,
+      user.password,
+    );
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    const isSamePassword = await bcrypt.compare(newPassword, user.password);
+
+    if (isSamePassword) {
+      throw new BadRequestException(
+        'New password must be different from the current password',
+      );
+    }
+
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: {
+          id,
+        },
+        data: {
+          password: hashedNewPassword,
+        },
+      }),
+      this.prisma.refreshToken.updateMany({
+        where: {
+          userId: id,
+        },
+        data: {
+          revokedAt: new Date(),
+        },
+      }),
+    ]);
   }
 }

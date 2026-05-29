@@ -5,6 +5,7 @@ import {
   ApiOkResponse,
   ApiNotFoundResponse,
   ApiUnauthorizedResponse,
+  ApiBadRequestResponse,
 } from '@nestjs/swagger';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -13,14 +14,15 @@ import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/response/user-response.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
 
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) { }
+  constructor(private readonly usersService: UsersService) {}
 
-  @Get('/me')
   @ApiOperation({ summary: 'Get current user' })
   @ApiOkResponse({
     description: 'The current user has been successfully retrieved',
@@ -28,11 +30,11 @@ export class UsersController {
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   @ApiNotFoundResponse({ description: 'User not found' })
+  @Get('/me')
   getCurrentUser(@GetCurrentUser() user: UserResponseDto) {
     return this.usersService.findById(user.id);
   }
 
-  @Patch('/me')
   @ApiOperation({ summary: 'Update current user' })
   @ApiOkResponse({
     description: 'The current user has been successfully updated',
@@ -40,10 +42,31 @@ export class UsersController {
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   @ApiNotFoundResponse({ description: 'User not found' })
+  @Patch('/me')
   updateProfile(
     @GetCurrentUser() user: UserResponseDto,
     @Body() updateUserDto: UpdateUserDto,
   ) {
     return this.usersService.updateProfile(user.id, updateUserDto);
+  }
+
+  @ApiOperation({ summary: 'Change current user password' })
+  @ApiOkResponse({
+    description: 'The current user password has been successfully changed',
+    type: SuccessResponseDto,
+  })
+  @ApiBadRequestResponse({ description: 'Invalid input data' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiNotFoundResponse({ description: 'User not found' })
+  @Patch('/me/password')
+  async changePassword(
+    @GetCurrentUser() user: UserResponseDto,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ) {
+    await this.usersService.changePassword(user.id, changePasswordDto);
+
+    return {
+      success: true,
+    };
   }
 }
