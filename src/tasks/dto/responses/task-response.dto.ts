@@ -2,6 +2,8 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 import { TaskPriority, TaskStatus } from '../../../../generated/prisma/enums';
 
+import { LabelResponseDto } from '../../../labels/dto/response/label-response.dto';
+
 export class TaskResponseDto {
   @ApiProperty({
     example: '123e4567-e89b-12d3-a456-426614174000',
@@ -52,6 +54,11 @@ export class TaskResponseDto {
     nullable: true,
   })
   assigneeId?: string;
+
+  @ApiProperty({
+    type: [LabelResponseDto],
+  })
+  labels!: LabelResponseDto[];
 
   @ApiProperty({
     example: '2024-01-01T12:00:00.000Z',

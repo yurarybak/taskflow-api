@@ -55,7 +55,7 @@ export class LabelsController {
     @Param('workspaceId') workspaceId: string,
     @Body() createLabelDto: CreateLabelDto,
   ) {
-    return this.labelService.create(user.id, workspaceId, createLabelDto);
+    return this.labelService.create(workspaceId, user.id, createLabelDto);
   }
 
   @ApiOperation({ summary: 'Update label' })

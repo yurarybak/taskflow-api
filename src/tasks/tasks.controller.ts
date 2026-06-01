@@ -5,6 +5,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiUnauthorizedResponse,
+  ApiNotFoundResponse,
 } from '@nestjs/swagger';
 import {
   Controller,
@@ -154,5 +155,45 @@ export class TasksController {
       taskId,
       assignTaskDto.assigneeId,
     );
+  }
+
+  @ApiOperation({ summary: 'Attach label to task' })
+  @ApiOkResponse({
+    description: 'Label attached successfully',
+    type: TaskResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid access token',
+  })
+  @ApiNotFoundResponse({
+    description: 'Task or label not found',
+  })
+  @Post(':id/labels/:labelId')
+  attachLabel(
+    @GetCurrentUser() user: CurrentUser,
+    @Param('id') id: string,
+    @Param('labelId') labelId: string,
+  ) {
+    return this.tasksService.attachLabel(id, labelId, user.id);
+  }
+
+  @ApiOperation({ summary: 'Detach label from task' })
+  @ApiOkResponse({
+    description: 'Label detached successfully',
+    type: TaskResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid access token',
+  })
+  @ApiNotFoundResponse({
+    description: 'Task or label not found',
+  })
+  @Delete(':id/labels/:labelId')
+  detachLabel(
+    @GetCurrentUser() user: CurrentUser,
+    @Param('id') id: string,
+    @Param('labelId') labelId: string,
+  ) {
+    return this.tasksService.detachLabel(id, labelId, user.id);
   }
 }

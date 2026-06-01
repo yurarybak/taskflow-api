@@ -56,6 +56,31 @@ export class TasksService {
     return project;
   }
 
+  private async ensureLabelInTaskWorkspace(taskId: string, labelId: string) {
+    const label = await this.prisma.label.findFirst({
+      where: {
+        id: labelId,
+        workspace: {
+          projects: {
+            some: {
+              tasks: {
+                some: {
+                  id: taskId,
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!label) {
+      throw new NotFoundException('Label not found');
+    }
+
+    return label;
+  }
+
   async create(
     creatorId: string,
     projectId: string,
@@ -299,6 +324,60 @@ export class TasksService {
       },
       data: {
         assigneeId,
+      },
+    });
+  }
+
+  async attachLabel(taskId: string, labelId: string, userId: string) {
+    const { task, membership } = await this.getTaskWithMembership(
+      taskId,
+      userId,
+    );
+
+    // Only allow attaching label if the user can manage any task or if they can manage their own task
+    if (!this.canManageTask(task.creatorId, userId, membership.role)) {
+      throw new NotFoundException('Task not found');
+    }
+
+    await this.ensureLabelInTaskWorkspace(taskId, labelId);
+
+    return this.prisma.task.update({
+      where: {
+        id: taskId,
+      },
+      data: {
+        labels: {
+          connect: {
+            id: labelId,
+          },
+        },
+      },
+    });
+  }
+
+  async detachLabel(taskId: string, labelId: string, userId: string) {
+    const { task, membership } = await this.getTaskWithMembership(
+      taskId,
+      userId,
+    );
+
+    // Only allow detaching label if the user can manage any task or if they can manage their own task
+    if (!this.canManageTask(task.creatorId, userId, membership.role)) {
+      throw new NotFoundException('Task not found');
+    }
+
+    await this.ensureLabelInTaskWorkspace(taskId, labelId);
+
+    return this.prisma.task.update({
+      where: {
+        id: taskId,
+      },
+      data: {
+        labels: {
+          disconnect: {
+            id: labelId,
+          },
+        },
       },
     });
   }
