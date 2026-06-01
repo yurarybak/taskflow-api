@@ -10,7 +10,11 @@ import {
   IsUUID,
 } from 'class-validator';
 
-import { TaskPriority, TaskStatus } from '../../../generated/prisma/enums';
+import {
+  TaskPriority,
+  TaskStatus,
+  TaskType,
+} from '../../../generated/prisma/enums';
 
 export class CreateTaskDto {
   @ApiProperty({
@@ -48,6 +52,14 @@ export class CreateTaskDto {
   @IsOptional()
   @IsEnum(TaskPriority)
   priority?: TaskPriority;
+
+  @ApiPropertyOptional({
+    example: TaskType.BUG,
+    enum: TaskType,
+  })
+  @IsOptional()
+  @IsEnum(TaskType)
+  type?: TaskType;
 
   @ApiPropertyOptional({
     example: '2024-12-31T23:59:59.000Z',

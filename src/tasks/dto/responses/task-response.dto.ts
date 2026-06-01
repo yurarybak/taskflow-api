@@ -1,6 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-import { TaskPriority, TaskStatus } from '../../../../generated/prisma/enums';
+import {
+  TaskPriority,
+  TaskStatus,
+  TaskType,
+} from '../../../../generated/prisma/enums';
 
 import { LabelResponseDto } from '../../../labels/dto/response/label-response.dto';
 
@@ -31,6 +35,12 @@ export class TaskResponseDto {
     enum: TaskPriority,
   })
   priority!: TaskPriority;
+
+  @ApiProperty({
+    enum: TaskType,
+    example: TaskType.BUG,
+  })
+  type!: TaskType;
 
   @ApiPropertyOptional({
     example: '2024-12-31T23:59:59.000Z',

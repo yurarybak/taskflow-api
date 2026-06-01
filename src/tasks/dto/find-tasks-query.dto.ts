@@ -12,7 +12,11 @@ import {
   IsArray,
   IsBoolean,
 } from 'class-validator';
-import { TaskStatus, TaskPriority } from '../../../generated/prisma/enums';
+import {
+  TaskStatus,
+  TaskPriority,
+  TaskType,
+} from '../../../generated/prisma/enums';
 import { Transform } from 'class-transformer';
 
 export class FindTasksQueryDto {
@@ -25,6 +29,11 @@ export class FindTasksQueryDto {
   @IsOptional()
   @IsEnum(TaskPriority)
   priority?: TaskPriority;
+
+  @ApiPropertyOptional({ enum: TaskType })
+  @IsOptional()
+  @IsEnum(TaskType)
+  type?: TaskType;
 
   @ApiPropertyOptional({
     description: 'Search term for task title or description',

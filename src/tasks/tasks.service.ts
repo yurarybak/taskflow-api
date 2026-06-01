@@ -185,6 +185,7 @@ export class TasksService {
       },
       status: query.status,
       priority: query.priority,
+      type: query.type,
       assigneeId: assigneeFilter,
       OR: query.search
         ? [
