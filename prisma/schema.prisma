@@ -43,6 +43,7 @@ model Workspace {
   owned User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   projects Project[]
   members  WorkspaceMember[]
+  labels   Label[]
 
   @@map("workspaces")
 }
@@ -86,6 +87,7 @@ model Task {
   updatedAt   DateTime     @updatedAt
 
   comments TaskComment[]
+  labels   Label[]
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   creator User    @relation(fields: [creatorId], references: [id], onDelete: Cascade)
@@ -142,4 +144,19 @@ model TaskComment {
   author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   @@map("task_comments")
+}
+
+model Label {
+  id          String   @id @default(uuid())
+  name        String
+  color       String
+  workspaceId String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tasks     Task[]
+
+  @@unique([workspaceId, name])
+  @@map("labels")
 }
