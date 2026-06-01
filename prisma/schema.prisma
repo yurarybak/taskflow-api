@@ -73,12 +73,21 @@ enum TaskPriority {
   MEDIUM
   HIGH
 }
+
+enum TaskType {
+  TASK
+  BUG
+  FEATURE
+  IMPROVEMENT
+}
+
 model Task {
   id          String       @id @default(uuid())
   title       String
   description String?
   status      TaskStatus   @default(TODO)
   priority    TaskPriority @default(MEDIUM)
+  type        TaskType     @default(TASK)
   dueDate     DateTime?
   projectId   String
   creatorId   String
