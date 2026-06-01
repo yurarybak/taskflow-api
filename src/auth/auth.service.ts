@@ -293,7 +293,18 @@ export class AuthService {
 
     const resetToken = await this.generateResetPasswordToken(user);
 
-    this.emailService.sendPasswordResetEmail(user.email, resetToken);
+    const fullName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') ||
+      'TaskFlow user';
+
+    const frontendUrl = this.configService.getOrThrow<string>('FRONTEND_URL');
+    const resetLink = `${frontendUrl}/reset-password?token=${resetToken}`;
+
+    await this.emailService.sendPasswordResetEmail(
+      user.email,
+      fullName,
+      resetLink,
+    );
   }
 
   async resetPassword(resetPasswordDto: ResetPasswordDto) {
