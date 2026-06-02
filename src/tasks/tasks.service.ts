@@ -209,43 +209,51 @@ export class TasksService {
       );
     }
 
-    const updatedTask = await this.prisma.task.update({
-      where: {
-        id: taskId,
-      },
-      data: {
-        ...updateTaskDto,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const updatedTask = await tx.task.update({
+        where: {
+          id: taskId,
+        },
+        data: {
+          ...updateTaskDto,
+        },
+      });
+
+      if (
+        updateTaskDto.assigneeId &&
+        updateTaskDto.assigneeId !== task.assigneeId
+      ) {
+        await this.taskActivityService.create(
+          {
+            taskId: updatedTask.id,
+            actorId: userId,
+            type: TaskActivityType.ASSIGNEE_CHANGED,
+            metadata: {
+              from: task.assigneeId,
+              to: updateTaskDto.assigneeId,
+            },
+          },
+          tx,
+        );
+      }
+
+      if (updateTaskDto.status && updateTaskDto.status !== task.status) {
+        await this.taskActivityService.create(
+          {
+            taskId: updatedTask.id,
+            actorId: userId,
+            type: TaskActivityType.STATUS_CHANGED,
+            metadata: {
+              from: task.status,
+              to: updateTaskDto.status,
+            },
+          },
+          tx,
+        );
+      }
+
+      return updatedTask;
     });
-
-    if (
-      updateTaskDto.assigneeId &&
-      updateTaskDto.assigneeId !== task.assigneeId
-    ) {
-      await this.taskActivityService.create({
-        taskId: updatedTask.id,
-        actorId: userId,
-        type: TaskActivityType.ASSIGNEE_CHANGED,
-        metadata: {
-          from: task.assigneeId,
-          to: updateTaskDto.assigneeId,
-        },
-      });
-    }
-
-    if (updateTaskDto.status && updateTaskDto.status !== task.status) {
-      await this.taskActivityService.create({
-        taskId: updatedTask.id,
-        actorId: userId,
-        type: TaskActivityType.STATUS_CHANGED,
-        metadata: {
-          from: task.status,
-          to: updateTaskDto.status,
-        },
-      });
-    }
-
-    return updatedTask;
   }
 
   findOneByMember(userId: string, taskId: string) {
