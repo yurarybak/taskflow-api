@@ -2,10 +2,16 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { unlink } from 'fs/promises';
 import { join } from 'path';
 import { PrismaService } from '../prisma/prisma.service';
+import { TaskActivityService } from '../task-activity/task-activity.service';
 import { WorkspaceRole } from '../../generated/prisma/enums';
+import { TaskActivityType } from '../../generated/prisma/enums';
+
 @Injectable()
 export class AttachmentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly taskActivityService: TaskActivityService,
+  ) {}
 
   private async ensureTaskMember(userId: string, taskId: string) {
     const task = await this.prisma.task.findFirst({
@@ -100,15 +106,32 @@ export class AttachmentsService {
     try {
       await this.ensureTaskMember(userId, taskId);
 
-      return this.prisma.taskAttachment.create({
-        data: {
-          originalName: file.originalname,
-          storageName: file.filename,
-          mimeType: file.mimetype,
-          size: file.size,
-          taskId,
-          uploaderId: userId,
-        },
+      return this.prisma.$transaction(async (tx) => {
+        const attachment = await tx.taskAttachment.create({
+          data: {
+            originalName: file.originalname,
+            storageName: file.filename,
+            mimeType: file.mimetype,
+            size: file.size,
+            taskId,
+            uploaderId: userId,
+          },
+        });
+
+        await this.taskActivityService.create(
+          {
+            taskId,
+            actorId: userId,
+            type: TaskActivityType.ATTACHMENT_UPLOADED,
+            metadata: {
+              attachmentId: attachment.id,
+              originalName: attachment.originalName,
+            },
+          },
+          tx,
+        );
+
+        return attachment;
       });
     } catch (error) {
       // If there's an error during the database operation, remove the uploaded file to prevent orphaned files
@@ -157,8 +180,23 @@ export class AttachmentsService {
     }
 
     // Delete the attachment record from the database
-    await this.prisma.taskAttachment.delete({
-      where: { id: attachment.id },
+    // Also log the activity of deleting the attachment
+    await this.prisma.$transaction(async (tx) => {
+      await tx.taskAttachment.delete({
+        where: { id: attachmentId },
+      });
+      await this.taskActivityService.create(
+        {
+          taskId: attachment.taskId,
+          actorId: userId,
+          type: TaskActivityType.ATTACHMENT_DELETED,
+          metadata: {
+            attachmentId: attachment.id,
+            originalName: attachment.originalName,
+          },
+        },
+        tx,
+      );
     });
 
     // Delete the file from the filesystem
