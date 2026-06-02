@@ -36,7 +36,7 @@ import { SuccessResponseDto } from '../common/dto/responses/success-response.dto
 @Controller('projects/:projectId/tasks')
 @UseGuards(JwtAuthGuard)
 export class TasksController {
-  constructor(private readonly tasksService: TasksService) { }
+  constructor(private readonly tasksService: TasksService) {}
 
   @ApiOperation({ summary: 'Create a new task in a project' })
   @ApiCreatedResponse({

@@ -163,21 +163,26 @@ export class TasksService {
       );
     }
 
-    const task = await this.prisma.task.create({
-      data: {
-        ...createTaskDto,
-        projectId,
-        creatorId,
-      },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      const task = await tx.task.create({
+        data: {
+          ...createTaskDto,
+          projectId,
+          creatorId,
+        },
+      });
 
-    await this.taskActivityService.create({
-      taskId: task.id,
-      actorId: creatorId,
-      type: TaskActivityType.TASK_CREATED,
-    });
+      await this.taskActivityService.create(
+        {
+          taskId: task.id,
+          actorId: creatorId,
+          type: TaskActivityType.TASK_CREATED,
+        },
+        tx,
+      );
 
-    return task;
+      return task;
+    });
   }
 
   async update(
