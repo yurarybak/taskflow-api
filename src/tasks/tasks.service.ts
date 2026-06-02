@@ -215,7 +215,7 @@ export class TasksService {
 
     if (
       updateTaskDto.assigneeId &&
-      updateTaskDto.assigneeId !== updatedTask.assigneeId
+      updateTaskDto.assigneeId !== task.assigneeId
     ) {
       await this.taskActivityService.create({
         taskId: updatedTask.id,
@@ -228,7 +228,7 @@ export class TasksService {
       });
     }
 
-    if (updateTaskDto.status && updateTaskDto.status !== updatedTask.status) {
+    if (updateTaskDto.status && updateTaskDto.status !== task.status) {
       await this.taskActivityService.create({
         taskId: updatedTask.id,
         actorId: userId,
