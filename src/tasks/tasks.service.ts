@@ -12,7 +12,7 @@ import type { PaginatedResponse } from '../common/types/paginated-response.type'
 
 @Injectable()
 export class TasksService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   private async ensureProjectMember(projectId: string, userId: string) {
     const project = await this.prisma.project.findFirst({
