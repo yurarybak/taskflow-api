@@ -1,18 +1,22 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
+import { TaskActivityService } from '../task-activity/task-activity.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { FindTasksQueryDto } from './dto/find-tasks-query.dto';
 import { createPaginationMeta } from '../common/utils/create-pagination-meta';
-import { WorkspaceRole } from '../../generated/prisma/enums';
+import { WorkspaceRole, TaskActivityType } from '../../generated/prisma/enums';
 
 import type { Prisma, Task } from '../../generated/prisma/client';
 import type { PaginatedResponse } from '../common/types/paginated-response.type';
 
 @Injectable()
 export class TasksService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly taskActivityService: TaskActivityService,
+  ) {}
 
   private async ensureProjectMember(projectId: string, userId: string) {
     const project = await this.prisma.project.findFirst({
@@ -95,13 +99,21 @@ export class TasksService {
       );
     }
 
-    return this.prisma.task.create({
+    const task = await this.prisma.task.create({
       data: {
         ...createTaskDto,
         projectId,
         creatorId,
       },
     });
+
+    await this.taskActivityService.create({
+      taskId: task.id,
+      actorId: creatorId,
+      type: TaskActivityType.TASK_CREATED,
+    });
+
+    return task;
   }
 
   async update(
@@ -128,7 +140,7 @@ export class TasksService {
       );
     }
 
-    return this.prisma.task.update({
+    const updatedTask = await this.prisma.task.update({
       where: {
         id: taskId,
       },
@@ -136,6 +148,20 @@ export class TasksService {
         ...updateTaskDto,
       },
     });
+
+    if (updateTaskDto.assigneeId) {
+      await this.taskActivityService.create({
+        taskId: updatedTask.id,
+        actorId: userId,
+        type: TaskActivityType.ASSIGNEE_CHANGED,
+        metadata: {
+          from: task.assigneeId,
+          to: updateTaskDto.assigneeId,
+        },
+      });
+    }
+
+    return updatedTask;
   }
 
   findOneByMember(userId: string, taskId: string) {
@@ -319,7 +345,7 @@ export class TasksService {
       await this.ensureProjectMemberByUserId(projectId, assigneeId);
     }
 
-    return this.prisma.task.update({
+    const updatedTask = await this.prisma.task.update({
       where: {
         id: taskId,
       },
@@ -327,6 +353,18 @@ export class TasksService {
         assigneeId,
       },
     });
+
+    await this.taskActivityService.create({
+      taskId: updatedTask.id,
+      actorId: userId,
+      type: TaskActivityType.ASSIGNEE_CHANGED,
+      metadata: {
+        from: updatedTask.assigneeId,
+        to: assigneeId,
+      },
+    });
+
+    return updatedTask;
   }
 
   async attachLabel(taskId: string, labelId: string, userId: string) {
@@ -340,9 +378,9 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    await this.ensureLabelInTaskWorkspace(taskId, labelId);
+    const label = await this.ensureLabelInTaskWorkspace(taskId, labelId);
 
-    return this.prisma.task.update({
+    const updatedTask = await this.prisma.task.update({
       where: {
         id: taskId,
       },
@@ -353,7 +391,22 @@ export class TasksService {
           },
         },
       },
+      include: {
+        labels: true,
+      },
     });
+
+    await this.taskActivityService.create({
+      taskId,
+      actorId: userId,
+      type: TaskActivityType.LABEL_ATTACHED,
+      metadata: {
+        labelId: label.id,
+        labelName: label.name,
+      },
+    });
+
+    return updatedTask;
   }
 
   async detachLabel(taskId: string, labelId: string, userId: string) {
@@ -367,9 +420,9 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    await this.ensureLabelInTaskWorkspace(taskId, labelId);
+    const label = await this.ensureLabelInTaskWorkspace(taskId, labelId);
 
-    return this.prisma.task.update({
+    const updatedTask = await this.prisma.task.update({
       where: {
         id: taskId,
       },
@@ -381,5 +434,15 @@ export class TasksService {
         },
       },
     });
+    await this.taskActivityService.create({
+      taskId: updatedTask.id,
+      actorId: userId,
+      type: TaskActivityType.LABEL_DETACHED,
+      metadata: {
+        labelId: label.id,
+        labelName: label.name,
+      },
+    });
+    return updatedTask;
   }
 }

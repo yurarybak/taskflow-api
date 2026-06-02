@@ -4,6 +4,7 @@ import { TaskActivityController } from './task-activity.controller';
 
 @Module({
   providers: [TaskActivityService],
-  controllers: [TaskActivityController]
+  exports: [TaskActivityService],
+  controllers: [TaskActivityController],
 })
 export class TaskActivityModule {}
