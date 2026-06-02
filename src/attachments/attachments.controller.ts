@@ -8,6 +8,7 @@ import {
   Get,
   NotFoundException,
   Res,
+  Delete,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -29,6 +30,7 @@ import { AttachmentsService } from './attachments.service';
 import { attachmentStorage } from './config/attachment-storage.config';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { AttachmentResponseDto } from './dto/responses/attachment-response.dto';
+import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
 
 import type { CurrentUser } from '../auth/types/current-user.type';
 
@@ -130,5 +132,28 @@ export class AttachmentsController {
     }
 
     return response.download(filePath, attachment.originalName);
+  }
+
+  @ApiOperation({ summary: 'Delete task attachment' })
+  @ApiOkResponse({
+    description: 'Attachment deleted successfully',
+    type: SuccessResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid access token',
+  })
+  @ApiNotFoundResponse({
+    description: 'Attachment not found',
+  })
+  @Delete(':attachmentId')
+  delete(
+    @GetCurrentUser() user: CurrentUser,
+    @Param('attachmentId') attachmentId: string,
+  ) {
+    await this.attachmentsService.delete(attachmentId, user.id);
+
+    return {
+      success: true,
+    };
   }
 }

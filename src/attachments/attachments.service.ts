@@ -1,5 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { unlink } from 'fs/promises';
+import { join } from 'path';
 import { PrismaService } from '../prisma/prisma.service';
+import { WorkspaceRole } from '../../generated/prisma/enums';
 @Injectable()
 export class AttachmentsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -108,5 +111,42 @@ export class AttachmentsService {
     );
 
     return attachment;
+  }
+
+  async delete(attachmentId: string, userId: string) {
+    const { attachment, membership } = await this.getAttachmentWithMembership(
+      attachmentId,
+      userId,
+    );
+
+    // Only workspace owners, admins, or the uploader of the attachment can delete it
+    const canDeleteAttachment =
+      membership.role === WorkspaceRole.OWNER ||
+      membership.role === WorkspaceRole.ADMIN;
+
+    if (!canDeleteAttachment) {
+      throw new NotFoundException('Attachment not found');
+    }
+
+    const canDeleteOwnAttachment = attachment.uploaderId === userId;
+
+    if (!canDeleteOwnAttachment) {
+      throw new NotFoundException('Attachment not found');
+    }
+
+    // Delete the attachment record from the database
+    await this.prisma.taskAttachment.delete({
+      where: { id: attachment.id },
+    });
+
+    // Delete the file from the filesystem
+    const filePath = join(
+      process.cwd(),
+      'uploads',
+      'attachments',
+      attachment.storageName,
+    );
+
+    await unlink(filePath);
   }
 }
