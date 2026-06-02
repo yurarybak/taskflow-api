@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { unlink } from 'fs/promises';
 import { join } from 'path';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -20,7 +21,10 @@ type CreateUserInput = {
 };
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+  ) {}
 
   private async removeAvatarFromStorage(storageName: string) {
     try {
@@ -32,6 +36,12 @@ export class UsersService {
       // Log the error but do not throw, since the main operation (like deleting the database record) has already succeeded
       console.error(`Failed to delete file from storage: ${error}`);
     }
+  }
+
+  private getAvatarUrl(userId: string) {
+    const appUrl = this.configService.getOrThrow<string>('APP_URL');
+
+    return `${appUrl}/users/${userId}/avatar`;
   }
 
   findByEmail(email: string) {
@@ -147,6 +157,8 @@ export class UsersService {
     if (oldAvatarStorageName) {
       await this.removeAvatarFromStorage(oldAvatarStorageName);
     }
+
+    return this.getAvatarUrl(id);
   }
 
   async removeAvatar(id: string) {
@@ -179,5 +191,22 @@ export class UsersService {
     });
 
     await this.removeAvatarFromStorage(avatarStorageName);
+  }
+
+  async findAvatar(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        id,
+      },
+      select: {
+        avatarStorageName: true,
+      },
+    });
+
+    if (!user?.avatarStorageName) {
+      throw new NotFoundException('Avatar not found');
+    }
+
+    return user.avatarStorageName;
   }
 }

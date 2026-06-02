@@ -9,6 +9,9 @@ import {
   UploadedFile,
   ParseFilePipe,
   Delete,
+  Param,
+  Res,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -22,6 +25,8 @@ import {
 } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { join } from 'path';
+import { existsSync } from 'fs';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UsersService } from './users.service';
@@ -31,6 +36,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/responses/user-response.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
+import { AvatarResponseDto } from './dto/responses/avatar-response.dto';
 
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
@@ -101,7 +107,7 @@ export class UsersController {
   })
   @ApiOkResponse({
     description: 'The current user avatar has been successfully uploaded',
-    type: UserResponseDto,
+    type: AvatarResponseDto,
   })
   @ApiBadRequestResponse({ description: 'Invalid input data' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
@@ -129,7 +135,11 @@ export class UsersController {
     )
     file: Express.Multer.File,
   ) {
-    await this.usersService.uploadAvatar(user.id, file);
+    const avatarUrl = await this.usersService.uploadAvatar(user.id, file);
+
+    return {
+      avatarUrl,
+    };
   }
 
   @ApiOperation({ summary: 'Delete current user avatar' })
@@ -146,5 +156,25 @@ export class UsersController {
     return {
       success: true,
     };
+  }
+
+  @ApiOperation({ summary: 'Get user avatar' })
+  @ApiOkResponse({
+    description: 'Avatar image returned successfully',
+  })
+  @ApiNotFoundResponse({
+    description: 'Avatar not found',
+  })
+  @Get(':id/avatar')
+  async getAvatar(@Param('id') id: string, @Res() response: Response) {
+    const storageName = await this.usersService.findAvatar(id);
+
+    const filePath = join(process.cwd(), 'uploads', 'avatars', storageName);
+
+    if (!existsSync(filePath)) {
+      throw new NotFoundException('Avatar file not found');
+    }
+
+    return response.sendFile(filePath);
   }
 }
