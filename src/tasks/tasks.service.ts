@@ -196,17 +196,9 @@ export class TasksService {
       userId,
     );
 
-    // Only allow deleting if the user can manage any task or if they can manage their own task
+    // Only privileged members or the task creator can update the task.
     if (!this.canManageTask(task.creatorId, userId, membership.role)) {
       throw new NotFoundException('Task not found');
-    }
-
-    // If assigneeId is being updated, ensure the new assignee is a member of the project
-    if (updateTaskDto.assigneeId) {
-      await this.ensureProjectMemberByUserId(
-        projectId,
-        updateTaskDto.assigneeId,
-      );
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -218,24 +210,6 @@ export class TasksService {
           ...updateTaskDto,
         },
       });
-
-      if (
-        updateTaskDto.assigneeId &&
-        updateTaskDto.assigneeId !== task.assigneeId
-      ) {
-        await this.taskActivityService.create(
-          {
-            taskId: updatedTask.id,
-            actorId: userId,
-            type: TaskActivityType.ASSIGNEE_CHANGED,
-            metadata: {
-              from: task.assigneeId,
-              to: updateTaskDto.assigneeId,
-            },
-          },
-          tx,
-        );
-      }
 
       if (updateTaskDto.status && updateTaskDto.status !== task.status) {
         await this.taskActivityService.create(
@@ -373,26 +347,31 @@ export class TasksService {
       await this.ensureProjectMemberByUserId(projectId, assigneeId);
     }
 
-    const updatedTask = await this.prisma.task.update({
-      where: {
-        id: taskId,
-      },
-      data: {
-        assigneeId,
-      },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      const updatedTask = await tx.task.update({
+        where: {
+          id: taskId,
+        },
+        data: {
+          assigneeId,
+        },
+      });
 
-    await this.taskActivityService.create({
-      taskId: updatedTask.id,
-      actorId: userId,
-      type: TaskActivityType.ASSIGNEE_CHANGED,
-      metadata: {
-        from: updatedTask.assigneeId,
-        to: assigneeId,
-      },
-    });
+      await this.taskActivityService.create(
+        {
+          taskId: updatedTask.id,
+          actorId: userId,
+          type: TaskActivityType.ASSIGNEE_CHANGED,
+          metadata: {
+            from: updatedTask.assigneeId,
+            to: assigneeId,
+          },
+        },
+        tx,
+      );
 
-    return updatedTask;
+      return updatedTask;
+    });
   }
 
   async attachLabel(taskId: string, labelId: string, userId: string) {
@@ -408,33 +387,38 @@ export class TasksService {
 
     const label = await this.ensureLabelInTaskWorkspace(taskId, labelId);
 
-    const updatedTask = await this.prisma.task.update({
-      where: {
-        id: taskId,
-      },
-      data: {
-        labels: {
-          connect: {
-            id: labelId,
+    return this.prisma.$transaction(async (tx) => {
+      const updatedTask = await tx.task.update({
+        where: {
+          id: taskId,
+        },
+        data: {
+          labels: {
+            connect: {
+              id: labelId,
+            },
           },
         },
-      },
-      include: {
-        labels: true,
-      },
-    });
+        include: {
+          labels: true,
+        },
+      });
 
-    await this.taskActivityService.create({
-      taskId,
-      actorId: userId,
-      type: TaskActivityType.LABEL_ATTACHED,
-      metadata: {
-        labelId: label.id,
-        labelName: label.name,
-      },
-    });
+      await this.taskActivityService.create(
+        {
+          taskId,
+          actorId: userId,
+          type: TaskActivityType.LABEL_ATTACHED,
+          metadata: {
+            labelId: label.id,
+            labelName: label.name,
+          },
+        },
+        tx,
+      );
 
-    return updatedTask;
+      return updatedTask;
+    });
   }
 
   async detachLabel(taskId: string, labelId: string, userId: string) {
@@ -450,27 +434,33 @@ export class TasksService {
 
     const label = await this.ensureLabelInTaskWorkspace(taskId, labelId);
 
-    const updatedTask = await this.prisma.task.update({
-      where: {
-        id: taskId,
-      },
-      data: {
-        labels: {
-          disconnect: {
-            id: labelId,
+    return this.prisma.$transaction(async (tx) => {
+      const updatedTask = await tx.task.update({
+        where: {
+          id: taskId,
+        },
+        data: {
+          labels: {
+            disconnect: {
+              id: labelId,
+            },
           },
         },
-      },
+      });
+      await this.taskActivityService.create(
+        {
+          taskId: updatedTask.id,
+          actorId: userId,
+          type: TaskActivityType.LABEL_DETACHED,
+          metadata: {
+            labelId: label.id,
+            labelName: label.name,
+          },
+        },
+        tx,
+      );
+
+      return updatedTask;
     });
-    await this.taskActivityService.create({
-      taskId: updatedTask.id,
-      actorId: userId,
-      type: TaskActivityType.LABEL_DETACHED,
-      metadata: {
-        labelId: label.id,
-        labelName: label.name,
-      },
-    });
-    return updatedTask;
   }
 }
