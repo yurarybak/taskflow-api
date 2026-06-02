@@ -9,6 +9,7 @@ import { TasksModule } from './tasks/tasks.module';
 import { CommentsModule } from './comments/comments.module';
 import { EmailModule } from './email/email.module';
 import { LabelsModule } from './labels/labels.module';
+import { TaskActivityModule } from './task-activity/task-activity.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { LabelsModule } from './labels/labels.module';
     CommentsModule,
     EmailModule,
     LabelsModule,
+    TaskActivityModule,
   ],
 })
 export class AppModule {}
