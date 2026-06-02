@@ -1,13 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { WorkspaceRole } from '../../generated/prisma/enums';
+import { TaskActivityService } from '../task-activity/task-activity.service';
+import { WorkspaceRole, TaskActivityType } from '../../generated/prisma/enums';
 
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 
 @Injectable()
 export class CommentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly taskActivityService: TaskActivityService,
+  ) {}
 
   private async ensureTaskMember(taskId: string, userId: string) {
     const task = await this.prisma.task.findFirst({
@@ -129,24 +133,40 @@ export class CommentsService {
 
     const { content } = createCommentDto;
 
-    return this.prisma.taskComment.create({
-      data: {
-        content,
-        taskId,
-        authorId: userId,
-      },
-      include: {
-        author: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            createdAt: true,
-            updatedAt: true,
+    return this.prisma.$transaction(async (tx) => {
+      const comment = await tx.taskComment.create({
+        data: {
+          content,
+          taskId,
+          authorId: userId,
+        },
+        include: {
+          author: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+              createdAt: true,
+              updatedAt: true,
+            },
           },
         },
-      },
+      });
+
+      await this.taskActivityService.create(
+        {
+          taskId,
+          actorId: userId,
+          type: TaskActivityType.COMMENT_CREATED,
+          metadata: {
+            commentId: comment.id,
+          },
+        },
+        tx,
+      );
+
+      return comment;
     });
   }
 
