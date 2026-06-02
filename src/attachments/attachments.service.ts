@@ -80,19 +80,41 @@ export class AttachmentsService {
     };
   }
 
-  async create(userId: string, taskId: string, file: Express.Multer.File) {
-    await this.ensureTaskMember(userId, taskId);
+  private async removeFileFromStorage(storageName: string) {
+    try {
+      const filePath = join(
+        process.cwd(),
+        'uploads',
+        'attachments',
+        storageName,
+      );
 
-    return this.prisma.taskAttachment.create({
-      data: {
-        originalName: file.originalname,
-        storageName: file.filename,
-        mimeType: file.mimetype,
-        size: file.size,
-        taskId,
-        uploaderId: userId,
-      },
-    });
+      await unlink(filePath);
+    } catch (error) {
+      // Log the error but do not throw, since the main operation (like deleting the database record) has already succeeded
+      console.error(`Failed to delete file from storage: ${error}`);
+    }
+  }
+
+  async create(userId: string, taskId: string, file: Express.Multer.File) {
+    try {
+      await this.ensureTaskMember(userId, taskId);
+
+      return this.prisma.taskAttachment.create({
+        data: {
+          originalName: file.originalname,
+          storageName: file.filename,
+          mimeType: file.mimetype,
+          size: file.size,
+          taskId,
+          uploaderId: userId,
+        },
+      });
+    } catch (error) {
+      // If there's an error during the database operation, remove the uploaded file to prevent orphaned files
+      await this.removeFileFromStorage(file.filename);
+      throw error;
+    }
   }
 
   async findAllByTask(taskId: string, userId: string) {
@@ -140,13 +162,6 @@ export class AttachmentsService {
     });
 
     // Delete the file from the filesystem
-    const filePath = join(
-      process.cwd(),
-      'uploads',
-      'attachments',
-      attachment.storageName,
-    );
-
-    await unlink(filePath);
+    await this.removeFileFromStorage(attachment.storageName);
   }
 }
