@@ -13,7 +13,7 @@ import { UsersService } from './users.service';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 
 import { UpdateUserDto } from './dto/update-user.dto';
-import { UserResponseDto } from './dto/response/user-response.dto';
+import { UserResponseDto } from './dto/responses/user-response.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
 

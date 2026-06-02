@@ -5,6 +5,7 @@ import {
   UseInterceptors,
   Post,
   Param,
+  Get,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -14,6 +15,7 @@ import {
   ApiCreatedResponse,
   ApiUnauthorizedResponse,
   ApiNotFoundResponse,
+  ApiOkResponse,
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -67,5 +69,24 @@ export class AttachmentsController {
     @UploadedFile() file: Express.Multer.File,
   ) {
     return this.attachmentsService.create(user.id, taskId, file);
+  }
+
+  @ApiOperation({ summary: 'Get attachments for a task' })
+  @ApiOkResponse({
+    description: 'List of attachments for the specified task',
+    type: [AttachmentResponseDto],
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid access token',
+  })
+  @ApiNotFoundResponse({
+    description: 'Task not found',
+  })
+  @Get()
+  findAll(
+    @GetCurrentUser() user: CurrentUser,
+    @Param('taskId') taskId: string,
+  ) {
+    return this.attachmentsService.findAllByTask(taskId, user.id);
   }
 }

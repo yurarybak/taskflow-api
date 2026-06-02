@@ -38,4 +38,13 @@ export class AttachmentsService {
       },
     });
   }
+
+  async findAllByTask(taskId: string, userId: string) {
+    await this.ensureTaskMember(userId, taskId);
+
+    return this.prisma.taskAttachment.findMany({
+      where: { taskId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 }
