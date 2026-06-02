@@ -21,7 +21,7 @@ import { CommentsService } from './comments.service';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 
 import { CreateCommentDto } from './dto/create-comment.dto';
-import { CommentResponseDto } from './dto/response/comment-response.dto';
+import { CommentResponseDto } from './dto/responses/comment-response.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
 

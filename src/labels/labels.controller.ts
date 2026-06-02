@@ -26,7 +26,7 @@ import type { CurrentUser } from '../auth/types/current-user.type';
 
 import { CreateLabelDto } from './dto/create-label.dto';
 import { UpdateLabelDto } from './dto/update-label.dto';
-import { LabelResponseDto } from './dto/response/label-response.dto';
+import { LabelResponseDto } from './dto/responses/label-response.dto';
 import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
 
 @ApiBearerAuth()

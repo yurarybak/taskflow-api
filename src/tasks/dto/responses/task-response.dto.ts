@@ -6,7 +6,7 @@ import {
   TaskType,
 } from '../../../../generated/prisma/enums';
 
-import { LabelResponseDto } from '../../../labels/dto/response/label-response.dto';
+import { LabelResponseDto } from '../../../labels/dto/responses/label-response.dto';
 
 export class TaskResponseDto {
   @ApiProperty({

@@ -10,7 +10,7 @@ import {
 import { TaskActivityService } from './task-activity.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
-import { TaskActivityResponseDto } from './dto/response/task-activity-response.dto';
+import { TaskActivityResponseDto } from './dto/responses/task-activity-response.dto';
 
 import type { CurrentUser } from '../auth/types/current-user.type';
 
