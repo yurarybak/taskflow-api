@@ -9,6 +9,7 @@ import {
   NotFoundException,
   Res,
   Delete,
+  ParseFilePipe,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -74,7 +75,12 @@ export class AttachmentsController {
   create(
     @GetCurrentUser() user: CurrentUser,
     @Param('taskId') taskId: string,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile(
+      new ParseFilePipe({
+        fileIsRequired: true,
+      }),
+    )
+    file: Express.Multer.File,
   ) {
     return this.attachmentsService.create(user.id, taskId, file);
   }
@@ -146,7 +152,7 @@ export class AttachmentsController {
     description: 'Attachment not found',
   })
   @Delete(':attachmentId')
-  delete(
+  async delete(
     @GetCurrentUser() user: CurrentUser,
     @Param('attachmentId') attachmentId: string,
   ) {
