@@ -29,6 +29,7 @@ model User {
   refreshTokens   RefreshToken[]
   comments        TaskComment[]
   taskActivityLogs TaskActivityLog[]
+  uploadedAttachments TaskAttachment[]
 
   @@map("users")
 }
@@ -99,6 +100,7 @@ model Task {
   comments TaskComment[]
   labels   Label[]
   activityLogs TaskActivityLog[]
+  attachments TaskAttachment[]
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   creator User    @relation(fields: [creatorId], references: [id], onDelete: Cascade)
@@ -194,4 +196,21 @@ model TaskActivityLog {
 
   @@index([taskId, createdAt])
   @@map("task_activity_logs")
+}
+
+model TaskAttachment {
+  id           String   @id @default(uuid())
+  originalName String
+  storageName  String   @unique
+  mimeType     String
+  size         Int
+  taskId       String
+  uploaderId   String
+  createdAt    DateTime @default(now())
+
+  task     Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploader User @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
+  @@map("task_attachments")
 }
