@@ -85,6 +85,70 @@ export class TasksService {
     return label;
   }
 
+  private async getTaskWithMembership(taskId: string, userId: string) {
+    const task = await this.prisma.task.findFirst({
+      where: {
+        id: taskId,
+        project: {
+          workspace: {
+            members: {
+              some: {
+                userId,
+              },
+            },
+          },
+        },
+      },
+      include: {
+        project: {
+          include: {
+            workspace: {
+              include: {
+                members: {
+                  where: {
+                    userId,
+                  },
+                  select: {
+                    id: true,
+                    role: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    const membership = task.project.workspace.members[0];
+
+    if (!membership) {
+      throw new NotFoundException('Membership not found');
+    }
+
+    return {
+      task,
+      membership,
+    };
+  }
+
+  private canManageTask(
+    creatorId: string,
+    userId: string,
+    role: WorkspaceRole,
+  ) {
+    const canManageAnyTask =
+      role === WorkspaceRole.OWNER || role === WorkspaceRole.ADMIN;
+
+    const canManageOwnTask = creatorId === userId;
+
+    return canManageAnyTask || canManageOwnTask;
+  }
+
   async create(
     creatorId: string,
     projectId: string,
@@ -149,7 +213,10 @@ export class TasksService {
       },
     });
 
-    if (updateTaskDto.assigneeId) {
+    if (
+      updateTaskDto.assigneeId &&
+      updateTaskDto.assigneeId !== updatedTask.assigneeId
+    ) {
       await this.taskActivityService.create({
         taskId: updatedTask.id,
         actorId: userId,
@@ -157,6 +224,18 @@ export class TasksService {
         metadata: {
           from: task.assigneeId,
           to: updateTaskDto.assigneeId,
+        },
+      });
+    }
+
+    if (updateTaskDto.status && updateTaskDto.status !== updatedTask.status) {
+      await this.taskActivityService.create({
+        taskId: updatedTask.id,
+        actorId: userId,
+        type: TaskActivityType.STATUS_CHANGED,
+        metadata: {
+          from: task.status,
+          to: updateTaskDto.status,
         },
       });
     }
@@ -267,70 +346,6 @@ export class TasksService {
         id: taskId,
       },
     });
-  }
-
-  private async getTaskWithMembership(taskId: string, userId: string) {
-    const task = await this.prisma.task.findFirst({
-      where: {
-        id: taskId,
-        project: {
-          workspace: {
-            members: {
-              some: {
-                userId,
-              },
-            },
-          },
-        },
-      },
-      include: {
-        project: {
-          include: {
-            workspace: {
-              include: {
-                members: {
-                  where: {
-                    userId,
-                  },
-                  select: {
-                    id: true,
-                    role: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!task) {
-      throw new NotFoundException('Task not found');
-    }
-
-    const membership = task.project.workspace.members[0];
-
-    if (!membership) {
-      throw new NotFoundException('Membership not found');
-    }
-
-    return {
-      task,
-      membership,
-    };
-  }
-
-  private canManageTask(
-    creatorId: string,
-    userId: string,
-    role: WorkspaceRole,
-  ) {
-    const canManageAnyTask =
-      role === WorkspaceRole.OWNER || role === WorkspaceRole.ADMIN;
-
-    const canManageOwnTask = creatorId === userId;
-
-    return canManageAnyTask || canManageOwnTask;
   }
 
   async assign(
