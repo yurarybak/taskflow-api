@@ -24,6 +24,59 @@ export class AttachmentsService {
     return task;
   }
 
+  private async getAttachmentWithMembership(id: string, userId: string) {
+    const attachment = await this.prisma.taskAttachment.findFirst({
+      where: {
+        id,
+        task: {
+          project: {
+            workspace: {
+              members: {
+                some: {
+                  userId,
+                },
+              },
+            },
+          },
+        },
+      },
+      include: {
+        task: {
+          include: {
+            project: {
+              include: {
+                workspace: {
+                  include: {
+                    members: {
+                      where: {
+                        userId,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!attachment) {
+      throw new NotFoundException('Attachment not found');
+    }
+
+    const membership = attachment.task.project.workspace.members[0];
+
+    if (!membership) {
+      throw new NotFoundException('Attachment not found');
+    }
+
+    return {
+      attachment,
+      membership,
+    };
+  }
+
   async create(userId: string, taskId: string, file: Express.Multer.File) {
     await this.ensureTaskMember(userId, taskId);
 
@@ -46,5 +99,14 @@ export class AttachmentsService {
       where: { taskId },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async findOne(attachmentId: string, userId: string) {
+    const { attachment } = await this.getAttachmentWithMembership(
+      attachmentId,
+      userId,
+    );
+
+    return attachment;
   }
 }

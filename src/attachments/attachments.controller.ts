@@ -6,6 +6,8 @@ import {
   Post,
   Param,
   Get,
+  NotFoundException,
+  Res,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -17,7 +19,11 @@ import {
   ApiNotFoundResponse,
   ApiOkResponse,
 } from '@nestjs/swagger';
+import { existsSync } from 'fs';
+import { join } from 'path';
+import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
+
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AttachmentsService } from './attachments.service';
 import { attachmentStorage } from './config/attachment-storage.config';
@@ -88,5 +94,41 @@ export class AttachmentsController {
     @Param('taskId') taskId: string,
   ) {
     return this.attachmentsService.findAllByTask(taskId, user.id);
+  }
+
+  @ApiOperation({ summary: 'Download task attachment' })
+  @ApiOkResponse({
+    description: 'Attachment file returned successfully',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid access token',
+  })
+  @ApiNotFoundResponse({
+    description: 'Attachment not found',
+  })
+  @Get(':attachmentId/download')
+  async download(
+    @GetCurrentUser() user: CurrentUser,
+    @Param('attachmentId') attachmentId: string,
+    @Res() response: Response,
+  ) {
+    const attachment = await this.attachmentsService.findOne(
+      attachmentId,
+      user.id,
+    );
+
+    // The file path is constructed based on the storage name of the attachment
+    const filePath = join(
+      process.cwd(),
+      'uploads',
+      'attachments',
+      attachment.storageName,
+    );
+
+    if (!existsSync(filePath)) {
+      throw new NotFoundException('Attachment file not found');
+    }
+
+    return response.download(filePath, attachment.originalName);
   }
 }
