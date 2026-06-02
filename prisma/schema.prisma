@@ -22,14 +22,14 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  ownedWorkspaces Workspace[]
+  ownedWorkspaces      Workspace[]
   workspaceMemberships WorkspaceMember[]
-  createdTasks    Task[]
-  assignedTasks   Task[] @relation("TaskAssignee")
-  refreshTokens   RefreshToken[]
-  comments        TaskComment[]
-  taskActivityLogs TaskActivityLog[]
-  uploadedAttachments TaskAttachment[]
+  createdTasks         Task[]
+  assignedTasks        Task[]            @relation("TaskAssignee")
+  refreshTokens        RefreshToken[]
+  comments             TaskComment[]
+  taskActivityLogs     TaskActivityLog[]
+  uploadedAttachments  TaskAttachment[]
 
   @@map("users")
 }
@@ -42,7 +42,7 @@ model Workspace {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  owned User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  owned    User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   projects Project[]
   members  WorkspaceMember[]
   labels   Label[]
@@ -97,15 +97,14 @@ model Task {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  comments TaskComment[]
-  labels   Label[]
+  comments     TaskComment[]
+  labels       Label[]
   activityLogs TaskActivityLog[]
-  attachments TaskAttachment[]
+  attachments  TaskAttachment[]
 
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  creator User    @relation(fields: [creatorId], references: [id], onDelete: Cascade)
-  assignee User?  @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-
+  project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  creator  User    @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  assignee User?   @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
 
   @@map("tasks")
 }
@@ -132,13 +131,13 @@ model WorkspaceMember {
 }
 
 model RefreshToken {
-  id        String   @id @default(uuid())
-  tokenHash String   @unique
+  id        String    @id @default(uuid())
+  tokenHash String    @unique
   userId    String
   expiresAt DateTime
   revokedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -181,6 +180,8 @@ enum TaskActivityType {
   LABEL_ATTACHED
   LABEL_DETACHED
   COMMENT_CREATED
+  ATTACHMENT_UPLOADED
+  ATTACHMENT_DELETED
 }
 
 model TaskActivityLog {
