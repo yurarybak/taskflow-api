@@ -10,6 +10,8 @@ import {
   Res,
   Delete,
   ParseFilePipe,
+  MaxFileSizeValidator,
+  FileTypeValidator,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -78,6 +80,15 @@ export class AttachmentsController {
     @UploadedFile(
       new ParseFilePipe({
         fileIsRequired: true,
+        validators: [
+          new MaxFileSizeValidator({
+            maxSize: 10 * 1024 * 1024,
+          }),
+          new FileTypeValidator({
+            fileType:
+              /^(application\/pdf|image\/(jpeg|png|webp)|text\/plain|application\/zip|application\/vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet))$/,
+          }),
+        ],
       }),
     )
     file: Express.Multer.File,

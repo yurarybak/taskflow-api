@@ -12,6 +12,8 @@ import {
   Param,
   Res,
   NotFoundException,
+  MaxFileSizeValidator,
+  FileTypeValidator,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -131,6 +133,14 @@ export class UsersController {
     @UploadedFile(
       new ParseFilePipe({
         fileIsRequired: true,
+        validators: [
+          new MaxFileSizeValidator({
+            maxSize: 5 * 1024 * 1024,
+          }),
+          new FileTypeValidator({
+            fileType: /^image\/(jpeg|png|webp)$/,
+          }),
+        ],
       }),
     )
     file: Express.Multer.File,
