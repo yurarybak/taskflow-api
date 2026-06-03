@@ -68,7 +68,16 @@ export class CreateTaskDto {
   })
   @IsOptional()
   @IsDateString()
-  dueDate?: Date;
+  dueDate?: string;
+
+  @ApiPropertyOptional({
+    example: '2024-12-31T23:59:59.000Z',
+    type: String,
+    format: 'date-time',
+  })
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
 
   @ApiPropertyOptional({
     example: '8c7b7b4e-3e7a-4f90-91a5-7a4f6f7c7c10',

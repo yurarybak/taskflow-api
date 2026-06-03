@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { TaskActivityService } from '../task-activity/task-activity.service';
@@ -149,12 +153,27 @@ export class TasksService {
     return canManageAnyTask || canManageOwnTask;
   }
 
+  private validateTaskDates(
+    startDate?: string | null,
+    dueDate?: string | null,
+  ) {
+    if (!startDate || !dueDate) {
+      return;
+    }
+
+    if (new Date(startDate) > new Date(dueDate)) {
+      throw new BadRequestException('Start date cannot be later than due date');
+    }
+  }
+
   async create(
     creatorId: string,
     projectId: string,
     createTaskDto: CreateTaskDto,
   ) {
     await this.ensureProjectMember(projectId, creatorId);
+
+    this.validateTaskDates(createTaskDto.startDate, createTaskDto.dueDate);
 
     if (createTaskDto.assigneeId) {
       await this.ensureProjectMemberByUserId(
@@ -200,6 +219,18 @@ export class TasksService {
     if (!this.canManageTask(task.creatorId, userId, membership.role)) {
       throw new NotFoundException('Task not found');
     }
+
+    const nextStartDate =
+      updateTaskDto.startDate !== undefined
+        ? updateTaskDto.startDate
+        : task.startDate?.toISOString();
+
+    const nextDueDate =
+      updateTaskDto.dueDate !== undefined
+        ? updateTaskDto.dueDate
+        : task.dueDate?.toISOString();
+
+    this.validateTaskDates(nextStartDate, nextDueDate);
 
     return this.prisma.$transaction(async (tx) => {
       const updatedTask = await tx.task.update({

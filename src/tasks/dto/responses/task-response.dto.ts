@@ -47,7 +47,14 @@ export class TaskResponseDto {
     type: String,
     format: 'date-time',
   })
-  dueDate?: Date;
+  dueDate?: string | null;
+
+  @ApiPropertyOptional({
+    example: '2024-12-31T23:59:59.000Z',
+    type: String,
+    format: 'date-time',
+  })
+  startDate?: string | null;
 
   @ApiProperty({
     example: '123e4567-e89b-12d3-a456-426614174000',
