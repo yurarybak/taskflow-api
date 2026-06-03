@@ -92,6 +92,7 @@ model Task {
   priority    TaskPriority @default(MEDIUM)
   type        TaskType     @default(TASK)
   dueDate     DateTime?
+  startDate   DateTime?
   projectId   String
   creatorId   String
   assigneeId  String?
