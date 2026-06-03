@@ -9,9 +9,6 @@ import {
   UploadedFile,
   ParseFilePipe,
   Delete,
-  Param,
-  Res,
-  NotFoundException,
   MaxFileSizeValidator,
 } from '@nestjs/common';
 import {
