@@ -7,6 +7,7 @@ import {
   Patch,
   Get,
   Delete,
+  Query,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -24,6 +25,8 @@ import { CreateCommentDto } from './dto/create-comment.dto';
 import { CommentResponseDto } from './dto/responses/comment-response.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
+import { PaginatedCommentsResponseDto } from './dto/responses/paginated-comments-response.dto';
+import { FindCommentsQueryDto } from './dto/find-comments-query.dto';
 
 import type { CurrentUser } from '../auth/types/current-user.type';
 
@@ -105,5 +108,23 @@ export class CommentsController {
     return {
       success: true,
     };
+  }
+
+  @ApiOperation({ summary: 'Get all comments for a task' })
+  @ApiCreatedResponse({
+    type: PaginatedCommentsResponseDto,
+    description: 'The comments have been successfully retrieved',
+  })
+  @ApiNotFoundResponse({
+    description: 'Task not found or user is not a member',
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @Get()
+  findAll(
+    @GetCurrentUser() user: CurrentUser,
+    @Param('taskId') taskId: string,
+    @Query() query: FindCommentsQueryDto,
+  ) {
+    return this.commentsService.findAllByTask(taskId, user.id, query);
   }
 }

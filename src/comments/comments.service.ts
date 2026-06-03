@@ -5,6 +5,11 @@ import { WorkspaceRole, TaskActivityType } from '../../generated/prisma/enums';
 
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
+import { FindCommentsQueryDto } from './dto/find-comments-query.dto';
+import { createPaginationMeta } from '../common/utils/create-pagination-meta';
+
+import type { Prisma, TaskComment } from '../../generated/prisma/client';
+import type { PaginatedResponse } from '../common/types/paginated-response.type';
 
 @Injectable()
 export class CommentsService {
@@ -228,5 +233,52 @@ export class CommentsService {
         id: commentId,
       },
     });
+  }
+
+  async findAllByTask(
+    taskId: string,
+    userId: string,
+    query: FindCommentsQueryDto,
+  ): Promise<PaginatedResponse<TaskComment>> {
+    await this.ensureTaskMember(taskId, userId);
+
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.TaskCommentWhereInput = {
+      taskId,
+    };
+
+    const [comments, total] = await Promise.all([
+      this.prisma.taskComment.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          author: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'asc',
+        },
+      }),
+      this.prisma.taskComment.count({
+        where,
+      }),
+    ]);
+
+    return {
+      data: comments,
+      meta: createPaginationMeta(page, limit, total),
+    };
   }
 }
