@@ -264,6 +264,16 @@ export class TasksService {
         ? { in: query.assigneeIds }
         : undefined;
 
+    const statusFilter = query.statuses?.length
+      ? { in: query.statuses }
+      : undefined;
+
+    const priorityFilter = query.priorities?.length
+      ? { in: query.priorities }
+      : undefined;
+
+    const typeFilter = query.types?.length ? { in: query.types } : undefined;
+
     const where: Prisma.TaskWhereInput = {
       projectId,
       project: {
@@ -275,9 +285,9 @@ export class TasksService {
           },
         },
       },
-      status: query.status,
-      priority: query.priority,
-      type: query.type,
+      status: statusFilter,
+      priority: priorityFilter,
+      type: typeFilter,
       assigneeId: assigneeFilter,
       OR: query.search
         ? [

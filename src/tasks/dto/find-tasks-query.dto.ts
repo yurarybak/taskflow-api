@@ -20,20 +20,47 @@ import {
 import { Transform } from 'class-transformer';
 
 export class FindTasksQueryDto {
-  @ApiPropertyOptional({ enum: TaskStatus })
+  @ApiPropertyOptional({
+    description: 'Filter tasks by status, comma-separated list of statuses',
+    enum: TaskStatus,
+    isArray: true,
+    example: [TaskStatus.TODO, TaskStatus.IN_PROGRESS],
+  })
   @IsOptional()
-  @IsEnum(TaskStatus)
-  status?: TaskStatus;
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.split(',').filter(Boolean) : [],
+  )
+  @IsArray()
+  @IsEnum(TaskStatus, { each: true })
+  statuses?: TaskStatus[];
 
-  @ApiPropertyOptional({ enum: TaskPriority })
+  @ApiPropertyOptional({
+    description: 'Filter tasks by priority, comma-separated list of priorities',
+    enum: TaskPriority,
+    isArray: true,
+    example: [TaskPriority.LOW, TaskPriority.MEDIUM],
+  })
   @IsOptional()
-  @IsEnum(TaskPriority)
-  priority?: TaskPriority;
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.split(',').filter(Boolean) : [],
+  )
+  @IsArray()
+  @IsEnum(TaskPriority, { each: true })
+  priorities?: TaskPriority[];
 
-  @ApiPropertyOptional({ enum: TaskType })
+  @ApiPropertyOptional({
+    description: 'Filter tasks by type, comma-separated list of types',
+    enum: TaskType,
+    isArray: true,
+    example: [TaskType.BUG, TaskType.FEATURE],
+  })
   @IsOptional()
-  @IsEnum(TaskType)
-  type?: TaskType;
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.split(',').filter(Boolean) : [],
+  )
+  @IsArray()
+  @IsEnum(TaskType, { each: true })
+  types?: TaskType[];
 
   @ApiPropertyOptional({
     description: 'Search term for task title or description',
