@@ -13,7 +13,6 @@ import {
   Res,
   NotFoundException,
   MaxFileSizeValidator,
-  FileTypeValidator,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -25,10 +24,7 @@ import {
   ApiConsumes,
   ApiBody,
 } from '@nestjs/swagger';
-import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { join } from 'path';
-import { existsSync } from 'fs';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UsersService } from './users.service';
@@ -119,8 +115,17 @@ export class UsersController {
       storage: avatarStorage,
       limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
       fileFilter: (_request, file, callback) => {
-        if (!file.mimetype.startsWith('image/')) {
-          return callback(new Error('Only image files are allowed'), false);
+        const allowedMimeTypes = new Set([
+          'image/jpeg',
+          'image/png',
+          'image/webp',
+        ]);
+
+        if (!allowedMimeTypes.has(file.mimetype)) {
+          return callback(
+            new Error('Only jpeg, png and webp images are allowed'),
+            false,
+          );
         }
 
         callback(null, true);
@@ -136,9 +141,6 @@ export class UsersController {
         validators: [
           new MaxFileSizeValidator({
             maxSize: 5 * 1024 * 1024,
-          }),
-          new FileTypeValidator({
-            fileType: /^image\/(jpeg|png|webp)$/,
           }),
         ],
       }),
@@ -166,25 +168,5 @@ export class UsersController {
     return {
       success: true,
     };
-  }
-
-  @ApiOperation({ summary: 'Get user avatar' })
-  @ApiOkResponse({
-    description: 'Avatar image returned successfully',
-  })
-  @ApiNotFoundResponse({
-    description: 'Avatar not found',
-  })
-  @Get(':id/avatar')
-  async getAvatar(@Param('id') id: string, @Res() response: Response) {
-    const storageName = await this.usersService.findAvatar(id);
-
-    const filePath = join(process.cwd(), 'uploads', 'avatars', storageName);
-
-    if (!existsSync(filePath)) {
-      throw new NotFoundException('Avatar file not found');
-    }
-
-    return response.sendFile(filePath);
   }
 }
