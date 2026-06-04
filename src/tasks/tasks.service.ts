@@ -572,4 +572,62 @@ export class TasksService {
       return unarchivedTask;
     });
   }
+
+  async flag(userId: string, taskId: string) {
+    await this.getTaskWithMembership(taskId, userId);
+
+    return this.prisma.$transaction(async (tx) => {
+      const archivedTask = await tx.task.update({
+        where: {
+          id: taskId,
+        },
+        data: {
+          flaggedAt: new Date(),
+        },
+        include: {
+          labels: true,
+        },
+      });
+
+      await this.taskActivityService.create(
+        {
+          taskId: archivedTask.id,
+          actorId: userId,
+          type: TaskActivityType.TASK_FLAGGED,
+        },
+        tx,
+      );
+
+      return archivedTask;
+    });
+  }
+
+  async unflag(userId: string, taskId: string) {
+    await this.getTaskWithMembership(taskId, userId);
+
+    return this.prisma.$transaction(async (tx) => {
+      const archivedTask = await tx.task.update({
+        where: {
+          id: taskId,
+        },
+        data: {
+          flaggedAt: null,
+        },
+        include: {
+          labels: true,
+        },
+      });
+
+      await this.taskActivityService.create(
+        {
+          taskId: archivedTask.id,
+          actorId: userId,
+          type: TaskActivityType.TASK_UNFLAGGED,
+        },
+        tx,
+      );
+
+      return archivedTask;
+    });
+  }
 }

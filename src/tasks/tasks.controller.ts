@@ -228,4 +228,38 @@ export class TasksController {
   unarchive(@GetCurrentUser() user: CurrentUser, @Param('id') id: string) {
     return this.tasksService.unarchive(user.id, id);
   }
+
+  @ApiOperation({
+    summary: 'Flag a task',
+  })
+  @ApiOkResponse({
+    description: 'Task flagged successfully',
+    type: TaskResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid access token',
+  })
+  @ApiNotFoundResponse({
+    description: 'Task not found',
+  })
+  @Patch(':id/flag')
+  flag(@GetCurrentUser() user: CurrentUser, @Param('id') id: string) {
+    return this.tasksService.flag(user.id, id);
+  }
+
+  @ApiOperation({ summary: 'Unflag a task' })
+  @ApiOkResponse({
+    description: 'Task unflagged successfully',
+    type: TaskResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid access token',
+  })
+  @ApiNotFoundResponse({
+    description: 'Task not found',
+  })
+  @Patch(':id/unarchive')
+  unflag(@GetCurrentUser() user: CurrentUser, @Param('id') id: string) {
+    return this.tasksService.unflag(user.id, id);
+  }
 }
