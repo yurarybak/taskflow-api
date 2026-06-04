@@ -651,7 +651,7 @@ export class TasksService {
           status: TaskStatus.TODO,
           priority: task.priority,
           projectId: task.projectId,
-          creatorId: task.creatorId,
+          creatorId: userId,
           assigneeId: task.assigneeId,
           labels: {
             connect: task.labels.map((label) => ({
@@ -666,7 +666,7 @@ export class TasksService {
 
       await this.taskActivityService.create(
         {
-          taskId: task.id,
+          taskId: createdTask.id,
           actorId: userId,
           type: TaskActivityType.TASK_CREATED,
         },
