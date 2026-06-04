@@ -196,4 +196,36 @@ export class TasksController {
   ) {
     return this.tasksService.detachLabel(id, labelId, user.id);
   }
+
+  @ApiOperation({ summary: 'Archive a task' })
+  @ApiOkResponse({
+    description: 'Task archived successfully',
+    type: TaskResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid access token',
+  })
+  @ApiNotFoundResponse({
+    description: 'Task not found',
+  })
+  @Patch(':id/archive')
+  archive(@GetCurrentUser() user: CurrentUser, @Param('id') id: string) {
+    return this.tasksService.archive(user.id, id);
+  }
+
+  @ApiOperation({ summary: 'Unarchive a task' })
+  @ApiOkResponse({
+    description: 'Task unarchived successfully',
+    type: TaskResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid access token',
+  })
+  @ApiNotFoundResponse({
+    description: 'Task not found',
+  })
+  @Patch(':id/unarchive')
+  unarchive(@GetCurrentUser() user: CurrentUser, @Param('id') id: string) {
+    return this.tasksService.unarchive(user.id, id);
+  }
 }

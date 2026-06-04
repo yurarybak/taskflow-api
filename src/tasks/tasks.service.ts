@@ -504,4 +504,56 @@ export class TasksService {
       return updatedTask;
     });
   }
+
+  async archive(userId: string, taskId: string) {
+    await this.getTaskWithMembership(taskId, userId);
+
+    return this.prisma.$transaction(async (tx) => {
+      const archivedTask = await tx.task.update({
+        where: {
+          id: taskId,
+        },
+        data: {
+          archivedAt: new Date(),
+        },
+      });
+
+      await this.taskActivityService.create(
+        {
+          taskId: archivedTask.id,
+          actorId: userId,
+          type: TaskActivityType.TASK_ARCHIVED,
+        },
+        tx,
+      );
+
+      return archivedTask;
+    });
+  }
+
+  async unarchive(userId: string, taskId: string) {
+    await this.getTaskWithMembership(taskId, userId);
+
+    return this.prisma.$transaction(async (tx) => {
+      const unarchivedTask = await tx.task.update({
+        where: {
+          id: taskId,
+        },
+        data: {
+          archivedAt: null,
+        },
+      });
+
+      await this.taskActivityService.create(
+        {
+          taskId: unarchivedTask.id,
+          actorId: userId,
+          type: TaskActivityType.TASK_UNARCHIVED,
+        },
+        tx,
+      );
+
+      return unarchivedTask;
+    });
+  }
 }
