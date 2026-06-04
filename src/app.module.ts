@@ -11,6 +11,7 @@ import { EmailModule } from './email/email.module';
 import { LabelsModule } from './labels/labels.module';
 import { TaskActivityModule } from './task-activity/task-activity.module';
 import { AttachmentsModule } from './attachments/attachments.module';
+import { ChecklistItemsModule } from './checklist-items/checklist-items.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { AttachmentsModule } from './attachments/attachments.module';
     LabelsModule,
     TaskActivityModule,
     AttachmentsModule,
+    ChecklistItemsModule,
   ],
 })
 export class AppModule {}
