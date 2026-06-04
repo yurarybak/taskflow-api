@@ -305,6 +305,15 @@ export class TasksService {
 
     const typeFilter = query.types?.length ? { in: query.types } : undefined;
 
+    const archivedFilter =
+      query.archived === undefined
+        ? null
+        : query.archived
+          ? {
+              not: null,
+            }
+          : null;
+
     const where: Prisma.TaskWhereInput = {
       projectId,
       project: {
@@ -320,6 +329,7 @@ export class TasksService {
       priority: priorityFilter,
       type: typeFilter,
       assigneeId: assigneeFilter,
+      archivedAt: archivedFilter,
       OR: query.search
         ? [
             {

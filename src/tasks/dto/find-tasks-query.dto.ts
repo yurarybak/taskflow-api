@@ -119,4 +119,13 @@ export class FindTasksQueryDto {
   @IsOptional()
   @IsBoolean()
   unassigned?: boolean;
+
+  @ApiPropertyOptional({
+    example: false,
+    description: 'Filter archived or active tasks',
+  })
+  @IsOptional()
+  @Transform(({ value }) => value === 'true')
+  @IsBoolean()
+  archived?: boolean;
 }
