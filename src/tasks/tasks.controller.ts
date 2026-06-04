@@ -258,7 +258,7 @@ export class TasksController {
   @ApiNotFoundResponse({
     description: 'Task not found',
   })
-  @Patch(':id/unarchive')
+  @Patch(':id/unflag')
   unflag(@GetCurrentUser() user: CurrentUser, @Param('id') id: string) {
     return this.tasksService.unflag(user.id, id);
   }
