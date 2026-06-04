@@ -25,7 +25,7 @@ import type { CurrentUser } from '../auth/types/current-user.type';
 
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('tasks/:taskId/task-watchers')
+@Controller('tasks/:taskId/watchers')
 export class TaskWatchersController {
   constructor(private readonly taskWatchersService: TaskWatchersService) {}
 
@@ -64,6 +64,8 @@ export class TaskWatchersController {
   })
   @Post('/me')
   addMe(@GetCurrentUser() user: CurrentUser, @Param('taskId') taskId: string) {
+    console.log('here11111111111111111');
+
     return this.taskWatchersService.addMe(user.id, taskId);
   }
 
