@@ -14,14 +14,14 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  firstName String?
-  lastName  String?
-  avatarStorageName String? @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String   @id @default(uuid())
+  email             String   @unique
+  password          String
+  firstName         String?
+  lastName          String?
+  avatarStorageName String?  @unique
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   ownedWorkspaces      Workspace[]
   workspaceMemberships WorkspaceMember[]
@@ -101,10 +101,11 @@ model Task {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  comments     TaskComment[]
-  labels       Label[]
-  activityLogs TaskActivityLog[]
-  attachments  TaskAttachment[]
+  comments       TaskComment[]
+  labels         Label[]
+  activityLogs   TaskActivityLog[]
+  attachments    TaskAttachment[]
+  checklistItems TaskChecklistItem[]
 
   project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   creator  User    @relation(fields: [creatorId], references: [id], onDelete: Cascade)
@@ -190,6 +191,11 @@ enum TaskActivityType {
   TASK_UNARCHIVED
   TASK_FLAGGED
   TASK_UNFLAGGED
+  CHECKLIST_ITEM_CREATED
+  CHECKLIST_ITEM_UPDATED
+  CHECKLIST_ITEM_DELETED
+  CHECKLIST_ITEM_COMPLETED
+  CHECKLIST_ITEM_REOPENED
 }
 
 model TaskActivityLog {
@@ -222,4 +228,19 @@ model TaskAttachment {
 
   @@index([taskId, createdAt])
   @@map("task_attachments")
+}
+
+model TaskChecklistItem {
+  id          String   @id @default(uuid())
+  title       String
+  isCompleted Boolean  @default(false)
+  position    Int      @default(0)
+  taskId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, position])
+  @@map("task_checklist_items")
 }
