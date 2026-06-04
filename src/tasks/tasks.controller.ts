@@ -262,4 +262,20 @@ export class TasksController {
   unflag(@GetCurrentUser() user: CurrentUser, @Param('id') id: string) {
     return this.tasksService.unflag(user.id, id);
   }
+
+  @ApiOperation({ summary: 'Clone task' })
+  @ApiCreatedResponse({
+    description: 'Task cloned successfully',
+    type: TaskResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid access token',
+  })
+  @ApiNotFoundResponse({
+    description: 'Task not found',
+  })
+  @Post(':id/clone')
+  clone(@GetCurrentUser() user: CurrentUser, @Param('id') id: string) {
+    return this.tasksService.clone(user.id, id);
+  }
 }

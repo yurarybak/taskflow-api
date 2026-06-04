@@ -10,7 +10,11 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { FindTasksQueryDto } from './dto/find-tasks-query.dto';
 import { createPaginationMeta } from '../common/utils/create-pagination-meta';
-import { WorkspaceRole, TaskActivityType } from '../../generated/prisma/enums';
+import {
+  WorkspaceRole,
+  TaskActivityType,
+  TaskStatus,
+} from '../../generated/prisma/enums';
 
 import type { Prisma, Task } from '../../generated/prisma/client';
 import type { PaginatedResponse } from '../common/types/paginated-response.type';
@@ -104,6 +108,7 @@ export class TasksService {
         },
       },
       include: {
+        labels: true,
         project: {
           include: {
             workspace: {
@@ -628,6 +633,47 @@ export class TasksService {
       );
 
       return archivedTask;
+    });
+  }
+
+  async clone(userId: string, taskId: string) {
+    const { task } = await this.getTaskWithMembership(taskId, userId);
+
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const createdTask = await tx.task.create({
+        data: {
+          title: `Copy of ${task.title}`,
+          description: task.description,
+          status: TaskStatus.TODO,
+          priority: task.priority,
+          projectId: task.projectId,
+          creatorId: task.creatorId,
+          assigneeId: task.assigneeId,
+          labels: {
+            connect: task.labels.map((label) => ({
+              id: label.id,
+            })),
+          },
+        },
+        include: {
+          labels: true,
+        },
+      });
+
+      await this.taskActivityService.create(
+        {
+          taskId: task.id,
+          actorId: userId,
+          type: TaskActivityType.TASK_CREATED,
+        },
+        tx,
+      );
+
+      return createdTask;
     });
   }
 }
