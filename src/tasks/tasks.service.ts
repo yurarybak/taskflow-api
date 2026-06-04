@@ -516,6 +516,9 @@ export class TasksService {
         data: {
           archivedAt: new Date(),
         },
+        include: {
+          labels: true,
+        },
       });
 
       await this.taskActivityService.create(
@@ -541,6 +544,9 @@ export class TasksService {
         },
         data: {
           archivedAt: null,
+        },
+        include: {
+          labels: true,
         },
       });
 
