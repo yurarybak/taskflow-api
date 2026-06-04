@@ -29,6 +29,17 @@ import type { CurrentUser } from '../auth/types/current-user.type';
 export class TaskWatchersController {
   constructor(private readonly taskWatchersService: TaskWatchersService) {}
 
+  @ApiOperation({ summary: 'Get task watchers' })
+  @ApiOkResponse({
+    description: 'Task watchers returned successfully',
+    type: [TaskWatcherResponseDto],
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid access token',
+  })
+  @ApiNotFoundResponse({
+    description: 'Task not found',
+  })
   @Get()
   findAll(
     @GetCurrentUser() user: CurrentUser,
