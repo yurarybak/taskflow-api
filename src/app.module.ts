@@ -12,6 +12,7 @@ import { LabelsModule } from './labels/labels.module';
 import { TaskActivityModule } from './task-activity/task-activity.module';
 import { AttachmentsModule } from './attachments/attachments.module';
 import { ChecklistItemsModule } from './checklist-items/checklist-items.module';
+import { TaskWatchersModule } from './task-watchers/task-watchers.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { ChecklistItemsModule } from './checklist-items/checklist-items.module';
     TaskActivityModule,
     AttachmentsModule,
     ChecklistItemsModule,
+    TaskWatchersModule,
   ],
 })
 export class AppModule {}
