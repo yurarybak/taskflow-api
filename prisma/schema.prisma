@@ -96,6 +96,7 @@ model Task {
   projectId   String
   creatorId   String
   assigneeId  String?
+  archivedAt  DateTime?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
