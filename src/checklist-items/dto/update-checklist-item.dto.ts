@@ -15,6 +15,7 @@ export class UpdateChecklistItemDto {
     minLength: 1,
     maxLength: 200,
   })
+  @IsOptional()
   @IsString()
   @MinLength(2)
   @MaxLength(200)

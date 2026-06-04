@@ -200,7 +200,7 @@ export class ChecklistItemsService {
     return this.prisma.$transaction(async (tx) => {
       await tx.taskChecklistItem.delete({
         where: {
-          id: taskId,
+          id: checklistItemId,
         },
       });
 

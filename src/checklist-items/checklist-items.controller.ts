@@ -10,7 +10,6 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
-  ApiConflictResponse,
   ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
@@ -28,13 +27,6 @@ import { ChecklistItemResponseDto } from './dto/responses/checklist-item-respons
 import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
 
 import type { CurrentUser } from '../auth/types/current-user.type';
-
-// TODO:
-// POST   /tasks/:taskId/checklist-items
-// GET    /tasks/:taskId/checklist-items
-// PATCH  /tasks/:taskId/checklist-items/:id
-// DELETE /tasks/:taskId/checklist-items/:id
-// PATCH  /tasks/:taskId/checklist-items/:id/toggle
 
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
