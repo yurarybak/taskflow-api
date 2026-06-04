@@ -97,6 +97,7 @@ model Task {
   creatorId   String
   assigneeId  String?
   archivedAt  DateTime?
+  flaggedAt   DateTime?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -187,6 +188,8 @@ enum TaskActivityType {
   ATTACHMENT_DELETED
   TASK_ARCHIVED
   TASK_UNARCHIVED
+  TASK_FLAGGED
+  TASK_UNFLAGGED
 }
 
 model TaskActivityLog {
