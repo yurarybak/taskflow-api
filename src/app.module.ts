@@ -13,6 +13,7 @@ import { TaskActivityModule } from './task-activity/task-activity.module';
 import { AttachmentsModule } from './attachments/attachments.module';
 import { ChecklistItemsModule } from './checklist-items/checklist-items.module';
 import { TaskWatchersModule } from './task-watchers/task-watchers.module';
+import { MilestonesModule } from './milestones/milestones.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { TaskWatchersModule } from './task-watchers/task-watchers.module';
     AttachmentsModule,
     ChecklistItemsModule,
     TaskWatchersModule,
+    MilestonesModule,
   ],
 })
 export class AppModule {}
