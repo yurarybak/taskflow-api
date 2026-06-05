@@ -64,8 +64,6 @@ export class TaskWatchersController {
   })
   @Post('/me')
   addMe(@GetCurrentUser() user: CurrentUser, @Param('taskId') taskId: string) {
-    console.log('here11111111111111111');
-
     return this.taskWatchersService.addMe(user.id, taskId);
   }
 

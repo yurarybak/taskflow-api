@@ -49,7 +49,7 @@ export class TaskWatchersService {
   }
 
   async findAllByTask(userId: string, taskId: string) {
-    await this.ensureUserCanAccessTask(userId, taskId);
+    await this.ensureUserCanAccessTask(taskId, userId);
 
     return this.prisma.taskWatcher.findMany({
       where: {
@@ -73,7 +73,7 @@ export class TaskWatchersService {
   async addWatcher(actorId: string, taskId: string, watcherUserId: string) {
     await Promise.all([
       this.ensureUserCanAccessTask(taskId, actorId),
-      this.ensureUserCanAccessTask(watcherUserId, actorId),
+      this.ensureUserCanAccessTask(taskId, watcherUserId),
     ]);
 
     const existingWatcher = await this.findWatcher(taskId, watcherUserId);
@@ -119,7 +119,7 @@ export class TaskWatchersService {
   async removeWatcher(actorId: string, taskId: string, watcherUserId: string) {
     await Promise.all([
       this.ensureUserCanAccessTask(taskId, actorId),
-      this.ensureUserCanAccessTask(watcherUserId, actorId),
+      this.ensureUserCanAccessTask(taskId, watcherUserId),
     ]);
 
     const existingWatcher = await this.findWatcher(taskId, watcherUserId);
