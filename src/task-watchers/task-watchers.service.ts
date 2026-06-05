@@ -124,7 +124,7 @@ export class TaskWatchersService {
 
     const existingWatcher = await this.findWatcher(taskId, watcherUserId);
 
-    if (existingWatcher) {
+    if (!existingWatcher) {
       throw new NotFoundException('Watcher was not found');
     }
 
