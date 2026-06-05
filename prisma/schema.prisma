@@ -60,8 +60,10 @@ model Project {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  tasks      Task[]
+  milestones Milestone[]
+
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  tasks     Task[]
 
   @@map("projects")
 }
@@ -97,6 +99,7 @@ model Task {
   projectId   String
   creatorId   String
   assigneeId  String?
+  milestoneId String?
   archivedAt  DateTime?
   flaggedAt   DateTime?
   createdAt   DateTime     @default(now())
@@ -109,9 +112,10 @@ model Task {
   checklistItems TaskChecklistItem[]
   watchers       TaskWatcher[]
 
-  project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  creator  User    @relation(fields: [creatorId], references: [id], onDelete: Cascade)
-  assignee User?   @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  creator   User    @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  assignee  User?   @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  milestone Milestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
 
   @@map("tasks")
 }
@@ -200,6 +204,7 @@ enum TaskActivityType {
   CHECKLIST_ITEM_REOPENED
   WATCHER_ADDED
   WATCHER_REMOVED
+  MILESTONE_CHANGED
 }
 
 model TaskActivityLog {
@@ -259,4 +264,23 @@ model TaskWatcher {
 
   @@id([taskId, userId])
   @@map("task_watchers")
+}
+
+model Milestone {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  startDate   DateTime?
+  dueDate     DateTime?
+  completedAt DateTime?
+  projectId   String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tasks   Task[]
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, name])
+  @@map("milestones")
 }
