@@ -176,7 +176,7 @@ export class MilestonesController {
   @ApiNotFoundResponse({
     description: 'Milestone not found',
   })
-  @Post('/:id/complete')
+  @Patch('/:id/complete')
   async complete(
     @GetCurrentUser() user: CurrentUser,
     @Param('projectId') projectId: string,
@@ -200,7 +200,7 @@ export class MilestonesController {
   @ApiNotFoundResponse({
     description: 'Milestone not found',
   })
-  @Post('/:id/reopen')
+  @Patch('/:id/reopen')
   async reopen(
     @GetCurrentUser() user: CurrentUser,
     @Param('projectId') projectId: string,
