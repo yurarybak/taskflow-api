@@ -8,6 +8,8 @@ import {
   MinLength,
   ValidateIf,
   IsUUID,
+  IsInt,
+  Min,
 } from 'class-validator';
 
 import {
@@ -87,4 +89,14 @@ export class CreateTaskDto {
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsUUID()
   assigneeId?: string;
+
+  @ApiPropertyOptional({
+    example: 480,
+    description: 'Original estimate in minutes',
+    minimum: 0,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  originalEstimateMinutes?: number;
 }

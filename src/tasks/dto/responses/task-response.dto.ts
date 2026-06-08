@@ -83,6 +83,26 @@ export class TaskResponseDto {
   })
   labels!: LabelResponseDto[];
 
+  @ApiPropertyOptional({
+    example: 480,
+    description: 'Original estimate in minutes',
+    nullable: true,
+  })
+  originalEstimateMinutes?: number | null;
+
+  @ApiPropertyOptional({
+    example: 240,
+    description: 'Remaining estimate in minutes',
+    nullable: true,
+  })
+  remainingEstimateMinutes?: number | null;
+
+  @ApiProperty({
+    example: 60,
+    description: 'Time spent in minutes',
+  })
+  timeSpentMinutes!: number;
+
   @ApiProperty({
     example: '2024-01-01T12:00:00.000Z',
     type: String,
