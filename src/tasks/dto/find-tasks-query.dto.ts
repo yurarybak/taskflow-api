@@ -63,6 +63,27 @@ export class FindTasksQueryDto {
   types?: TaskType[];
 
   @ApiPropertyOptional({
+    example:
+      '8c7b7b4e-3e7a-4f90-91a5-7a4f6f7c7c10,2b7b7b4e-3e7a-4f90-91a5-7a4f6f7c7c20',
+    description: 'Comma-separated milestone ids',
+  })
+  @IsOptional()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.split(',').filter(Boolean) : [],
+  )
+  @IsArray()
+  @IsUUID('all', { each: true })
+  milestoneIds?: string[];
+
+  @ApiPropertyOptional({
+    example: false,
+  })
+  @IsOptional()
+  @Transform(({ value }) => value === 'true')
+  @IsBoolean()
+  withoutMilestone?: boolean;
+
+  @ApiPropertyOptional({
     description: 'Search term for task title or description',
     minLength: 2,
     maxLength: 100,

@@ -338,6 +338,12 @@ export class TasksService {
             }
           : null;
 
+    const milestoneFilter = query.withoutMilestone
+      ? null
+      : query.milestoneIds?.length
+        ? { in: query.milestoneIds }
+        : undefined;
+
     const where: Prisma.TaskWhereInput = {
       projectId,
       project: {
@@ -354,6 +360,7 @@ export class TasksService {
       type: typeFilter,
       assigneeId: assigneeFilter,
       archivedAt: archivedFilter,
+      milestoneId: milestoneFilter,
       OR: query.search
         ? [
             {
