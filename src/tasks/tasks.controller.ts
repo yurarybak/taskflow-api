@@ -31,6 +31,7 @@ import { PaginatedTasksResponseDto } from './dto/responses/paginated-tasks-respo
 import { TaskResponseDto } from './dto/responses/task-response.dto';
 import { AssignTaskDto } from './dto/assign-task.dto';
 import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
+import { SetTaskMilestoneDto } from './dto/set-task-milestone.dto';
 
 @ApiBearerAuth()
 @Controller('projects/:projectId/tasks')
@@ -277,5 +278,31 @@ export class TasksController {
   @Post(':id/clone')
   clone(@GetCurrentUser() user: CurrentUser, @Param('id') id: string) {
     return this.tasksService.clone(user.id, id);
+  }
+
+  @ApiOperation({ summary: 'Set task milestone' })
+  @ApiOkResponse({
+    description: 'Task milestone updated successfully',
+    type: TaskResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid access token',
+  })
+  @ApiNotFoundResponse({
+    description: 'Task or milestone not found',
+  })
+  @Patch('/:id/milestone')
+  setMilestone(
+    @GetCurrentUser() user: CurrentUser,
+    @Param('projectId') projectId: string,
+    @Param('id') id: string,
+    @Body() setTaskMilestoneDto: SetTaskMilestoneDto,
+  ) {
+    return this.tasksService.setMilestone(
+      user.id,
+      projectId,
+      id,
+      setTaskMilestoneDto,
+    );
   }
 }

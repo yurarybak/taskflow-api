@@ -9,6 +9,7 @@ import { TaskActivityService } from '../task-activity/task-activity.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { FindTasksQueryDto } from './dto/find-tasks-query.dto';
+import { SetTaskMilestoneDto } from './dto/set-task-milestone.dto';
 import { createPaginationMeta } from '../common/utils/create-pagination-meta';
 import {
   WorkspaceRole,
@@ -169,6 +170,24 @@ export class TasksService {
     if (new Date(startDate) > new Date(dueDate)) {
       throw new BadRequestException('Start date cannot be later than due date');
     }
+  }
+
+  private async ensureMilestoneInTaskProject(
+    projectId: string,
+    milestoneId: string,
+  ) {
+    const milestone = await this.prisma.milestone.findFirst({
+      where: {
+        id: milestoneId,
+        projectId,
+      },
+    });
+
+    if (!milestone) {
+      throw new NotFoundException('Milestone not found');
+    }
+
+    return milestone;
   }
 
   async create(
@@ -674,6 +693,47 @@ export class TasksService {
       );
 
       return createdTask;
+    });
+  }
+
+  async setMilestone(
+    userId: string,
+    projectId: string,
+    taskId: string,
+    setTaskMilestoneDto: SetTaskMilestoneDto,
+  ) {
+    const { task } = await this.getTaskWithMembership(taskId, userId);
+
+    const milestoneId = setTaskMilestoneDto.milestoneId;
+
+    if (milestoneId) {
+      await this.ensureMilestoneInTaskProject(projectId, milestoneId);
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const updatedTask = await tx.task.update({
+        where: {
+          id: task.id,
+        },
+        data: {
+          milestoneId,
+        },
+      });
+
+      await this.taskActivityService.create(
+        {
+          actorId: userId,
+          type: TaskActivityType.MILESTONE_CHANGED,
+          taskId,
+          metadata: {
+            from: task.milestoneId,
+            to: milestoneId,
+          },
+        },
+        tx,
+      );
+
+      return updatedTask;
     });
   }
 }
