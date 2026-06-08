@@ -15,6 +15,7 @@ import { ChecklistItemsModule } from './checklist-items/checklist-items.module';
 import { TaskWatchersModule } from './task-watchers/task-watchers.module';
 import { MilestonesModule } from './milestones/milestones.module';
 import { SavedTaskFiltersModule } from './saved-task-filters/saved-task-filters.module';
+import { WorklogsModule } from './worklogs/worklogs.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { SavedTaskFiltersModule } from './saved-task-filters/saved-task-filters.
     TaskWatchersModule,
     MilestonesModule,
     SavedTaskFiltersModule,
+    WorklogsModule,
   ],
 })
 export class AppModule {}
