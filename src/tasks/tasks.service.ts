@@ -281,6 +281,24 @@ export class TasksService {
         );
       }
 
+      if (
+        updateTaskDto.originalEstimateMinutes &&
+        updateTaskDto.originalEstimateMinutes !== task.originalEstimateMinutes
+      ) {
+        await this.taskActivityService.create(
+          {
+            taskId: updatedTask.id,
+            actorId: userId,
+            type: TaskActivityType.ESTIMATE_CHANGED,
+            metadata: {
+              from: task.originalEstimateMinutes,
+              to: updateTaskDto.originalEstimateMinutes,
+            },
+          },
+          tx,
+        );
+      }
+
       return updatedTask;
     });
   }
