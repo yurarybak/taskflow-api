@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "TaskActivityType" ADD VALUE 'ESTIMATE_CHANGED';
