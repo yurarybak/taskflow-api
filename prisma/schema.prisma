@@ -32,6 +32,7 @@ model User {
   taskActivityLogs     TaskActivityLog[]
   uploadedAttachments  TaskAttachment[]
   watchedTasks         TaskWatcher[]
+  savedTaskFilters     SavedTaskFilter[]
 
   @@map("users")
 }
@@ -62,6 +63,7 @@ model Project {
 
   tasks      Task[]
   milestones Milestone[]
+  savedTaskFilters SavedTaskFilter[]
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
@@ -283,4 +285,20 @@ model Milestone {
 
   @@unique([projectId, name])
   @@map("milestones")
+}
+
+model SavedTaskFilter {
+  id        String   @id @default(uuid())
+  name      String
+  filters   Json
+  projectId String
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId, name])
+  @@map("saved_task_filters")
 }
