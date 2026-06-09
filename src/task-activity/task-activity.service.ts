@@ -1,8 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 import type { CreateTaskActivityInput } from './types/create-task-activity.type';
+import { PrismaTransactionClient } from '../prisma/types/prisma-transaction-client.type';
 
 @Injectable()
 export class TaskActivityService {
@@ -30,10 +30,9 @@ export class TaskActivityService {
     return task;
   }
 
-  create(
-    input: CreateTaskActivityInput,
-    prisma: Prisma.TransactionClient = this.prisma,
-  ) {
+  create(input: CreateTaskActivityInput, tx?: PrismaTransactionClient) {
+    const prisma = tx ?? this.prisma;
+
     return prisma.taskActivityLog.create({
       data: input,
     });
