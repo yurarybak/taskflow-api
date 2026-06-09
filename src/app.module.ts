@@ -16,6 +16,7 @@ import { TaskWatchersModule } from './task-watchers/task-watchers.module';
 import { MilestonesModule } from './milestones/milestones.module';
 import { SavedTaskFiltersModule } from './saved-task-filters/saved-task-filters.module';
 import { WorklogsModule } from './worklogs/worklogs.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { WorklogsModule } from './worklogs/worklogs.module';
     MilestonesModule,
     SavedTaskFiltersModule,
     WorklogsModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}
