@@ -1,10 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { TaskActivityService } from '../task-activity/task-activity.service';
 import { CreateWorklogDto } from './dto/create-worklog.dto';
 import { UpdateWorklogDto } from './dto/update-worklog.dto';
 import { TaskActivityType } from '../../generated/prisma/enums';
+import { PrismaTransactionClient } from '../prisma/types/prisma-transaction-client.type';
 
 @Injectable()
 export class WorklogsService {
@@ -13,7 +18,7 @@ export class WorklogsService {
     private readonly taskActivityService: TaskActivityService,
   ) {}
 
-  private async ensureTaskMember(
+  private async ensureTaskWorkspaceMember(
     userId: string,
     projectId: string,
     taskId: string,
@@ -41,17 +46,47 @@ export class WorklogsService {
     return task;
   }
 
+  private async recalculateTaskTimeSpent(
+    taskId: string,
+    remainingEstimateMinutes: number | undefined,
+    tx: PrismaTransactionClient,
+  ) {
+    const result = await tx.worklog.aggregate({
+      where: {
+        taskId,
+      },
+      _sum: {
+        timeSpentMinutes: true,
+      },
+    });
+
+    await tx.task.update({
+      where: {
+        id: taskId,
+      },
+      data: {
+        timeSpentMinutes: result._sum.timeSpentMinutes ?? 0,
+        ...(remainingEstimateMinutes !== undefined && {
+          remainingEstimateMinutes,
+        }),
+      },
+    });
+  }
+
   private async findOneByMember(
     userId: string,
     projectId: string,
     taskId: string,
     worklogId: string,
   ) {
-    await this.ensureTaskMember(userId, projectId, taskId);
+    await this.ensureTaskWorkspaceMember(userId, projectId, taskId);
 
     const worklog = await this.prisma.worklog.findFirst({
       where: {
         id: worklogId,
+      },
+      include: {
+        author: this.getAuthorInclude(),
       },
     });
 
@@ -62,22 +97,44 @@ export class WorklogsService {
     return worklog;
   }
 
+  private getAuthorInclude() {
+    return {
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+      },
+    };
+  }
+
   async create(
     userId: string,
     projectId: string,
     taskId: string,
     createWorklogDto: CreateWorklogDto,
   ) {
-    await this.ensureTaskMember(userId, projectId, taskId);
+    await this.ensureTaskWorkspaceMember(userId, projectId, taskId);
 
     return this.prisma.$transaction(async (tx) => {
       const worklog = await tx.worklog.create({
         data: {
+          timeSpentMinutes: createWorklogDto.timeSpentMinutes,
+          description: createWorklogDto.description,
+          startedAt: createWorklogDto.startedAt,
           taskId,
           authorId: userId,
-          ...createWorklogDto,
+        },
+        include: {
+          author: this.getAuthorInclude(),
         },
       });
+
+      await this.recalculateTaskTimeSpent(
+        taskId,
+        createWorklogDto.remainingEstimateMinutes,
+        tx,
+      );
 
       await this.taskActivityService.create(
         {
@@ -86,6 +143,8 @@ export class WorklogsService {
           type: TaskActivityType.TIME_LOGGED,
           metadata: {
             worklogId: worklog.id,
+            timeSpentMinutes: worklog.timeSpentMinutes,
+            remainingEstimateMinutes: createWorklogDto.remainingEstimateMinutes,
           },
         },
         tx,
@@ -96,11 +155,14 @@ export class WorklogsService {
   }
 
   async findAll(userId: string, projectId: string, taskId: string) {
-    await this.ensureTaskMember(userId, projectId, taskId);
+    await this.ensureTaskWorkspaceMember(userId, projectId, taskId);
 
     return this.prisma.worklog.findMany({
       where: {
         taskId,
+      },
+      include: {
+        author: this.getAuthorInclude(),
       },
       orderBy: {
         createdAt: 'desc',
@@ -132,30 +194,55 @@ export class WorklogsService {
     );
 
     if (worklog.authorId !== userId) {
-      throw new NotFoundException('Worklog was not found');
+      throw new ForbiddenException('You cannot manage this worklog');
     }
 
     return this.prisma.$transaction(async (tx) => {
-      await tx.worklog.update({
+      const updatedWorklog = await tx.worklog.update({
         where: {
-          id: worklog.id,
+          id: worklogId,
         },
-        data: updateWorklogDto,
+        data: {
+          timeSpentMinutes: updateWorklogDto.timeSpentMinutes,
+          description: updateWorklogDto.description,
+          startedAt: updateWorklogDto.startedAt,
+        },
+        include: {
+          author: this.getAuthorInclude(),
+        },
       });
+
+      await this.recalculateTaskTimeSpent(
+        taskId,
+        updateWorklogDto.remainingEstimateMinutes,
+        tx,
+      );
 
       await this.taskActivityService.create(
         {
-          actorId: userId,
           taskId,
+          actorId: userId,
           type: TaskActivityType.WORKLOG_UPDATED,
           metadata: {
-            worklogId: worklog.id,
+            worklogId,
+            from: {
+              timeSpentMinutes: worklog.timeSpentMinutes,
+              description: worklog.description,
+              startedAt: worklog.startedAt.toISOString(),
+            },
+            to: {
+              timeSpentMinutes: updatedWorklog.timeSpentMinutes,
+              description: updatedWorklog.description,
+              startedAt: updatedWorklog.startedAt.toISOString(),
+              remainingEstimateMinutes:
+                updateWorklogDto.remainingEstimateMinutes,
+            },
           },
         },
         tx,
       );
 
-      return worklog;
+      return updatedWorklog;
     });
   }
 
@@ -173,7 +260,7 @@ export class WorklogsService {
     );
 
     if (worklog.authorId !== userId) {
-      throw new NotFoundException('Worklog was not found');
+      throw new ForbiddenException('You cannot manage this worklog');
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -183,13 +270,16 @@ export class WorklogsService {
         },
       });
 
+      await this.recalculateTaskTimeSpent(taskId, undefined, tx);
+
       await this.taskActivityService.create(
         {
-          actorId: userId,
           taskId,
+          actorId: userId,
           type: TaskActivityType.WORKLOG_DELETED,
           metadata: {
             worklogId,
+            timeSpentMinutes: worklog.timeSpentMinutes,
           },
         },
         tx,

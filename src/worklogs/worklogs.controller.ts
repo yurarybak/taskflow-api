@@ -8,12 +8,20 @@ import {
   Body,
   Param,
 } from '@nestjs/common';
-import { ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import { WorklogsService } from './worklogs.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { CreateWorklogDto } from './dto/create-worklog.dto';
 import { UpdateWorklogDto } from './dto/update-worklog.dto';
+import { WorklogResponseDto } from './dto/responses/worklog-response.dto';
+import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
 
 import type { CurrentUser } from '../auth/types/current-user.type';
 
@@ -30,6 +38,9 @@ import type { CurrentUser } from '../auth/types/current-user.type';
 export class WorklogsController {
   constructor(private readonly worklogsService: WorklogsService) {}
 
+  @ApiCreatedResponse({ type: WorklogResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiNotFoundResponse({ description: 'Task not found' })
   @Post()
   create(
     @GetCurrentUser() user: CurrentUser,
@@ -45,6 +56,9 @@ export class WorklogsController {
     );
   }
 
+  @ApiOkResponse({ type: WorklogResponseDto, isArray: true })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiNotFoundResponse({ description: 'Task not found' })
   @Get()
   findAll(
     @GetCurrentUser() user: CurrentUser,
@@ -54,6 +68,9 @@ export class WorklogsController {
     return this.worklogsService.findAll(user.id, projectId, taskId);
   }
 
+  @ApiOkResponse({ type: WorklogResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiNotFoundResponse({ description: 'Worklog not found' })
   @Get('/:id')
   findOne(
     @GetCurrentUser() user: CurrentUser,
@@ -64,6 +81,9 @@ export class WorklogsController {
     return this.worklogsService.findOne(user.id, projectId, taskId, id);
   }
 
+  @ApiOkResponse({ type: WorklogResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiNotFoundResponse({ description: 'Worklog not found' })
   @Patch('/:id')
   update(
     @GetCurrentUser() user: CurrentUser,
@@ -81,6 +101,9 @@ export class WorklogsController {
     );
   }
 
+  @ApiOkResponse({ type: SuccessResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiNotFoundResponse({ description: 'Worklog not found' })
   @Delete('/:id')
   async remove(
     @GetCurrentUser() user: CurrentUser,
