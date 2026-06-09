@@ -8,8 +8,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TaskActivityService } from '../task-activity/task-activity.service';
 import { CreateWorklogDto } from './dto/create-worklog.dto';
 import { UpdateWorklogDto } from './dto/update-worklog.dto';
+import { FindWorklogsQueryDto } from './dto/find-worklogs-query.dto';
 import { TaskActivityType } from '../../generated/prisma/enums';
 import { PrismaTransactionClient } from '../prisma/types/prisma-transaction-client.type';
+import { createPaginationMeta } from '../common/utils/create-pagination-meta';
+
+import type { Worklog } from '../../generated/prisma/client';
+import type { PaginatedResponse } from '../common/types/paginated-response.type';
 
 @Injectable()
 export class WorklogsService {
@@ -154,20 +159,43 @@ export class WorklogsService {
     });
   }
 
-  async findAll(userId: string, projectId: string, taskId: string) {
+  async findAll(
+    userId: string,
+    projectId: string,
+    taskId: string,
+    query: FindWorklogsQueryDto,
+  ): Promise<PaginatedResponse<Worklog>> {
     await this.ensureTaskWorkspaceMember(userId, projectId, taskId);
 
-    return this.prisma.worklog.findMany({
-      where: {
-        taskId,
-      },
-      include: {
-        author: this.getAuthorInclude(),
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const skip = (page - 1) * limit;
+
+    const [worklogs, total] = await Promise.all([
+      this.prisma.worklog.findMany({
+        where: {
+          taskId,
+        },
+        include: {
+          author: this.getAuthorInclude(),
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip,
+        take: limit,
+      }),
+      this.prisma.worklog.count({
+        where: {
+          taskId,
+        },
+      }),
+    ]);
+
+    return {
+      data: worklogs,
+      meta: createPaginationMeta(total, page, limit),
+    };
   }
 
   findOne(

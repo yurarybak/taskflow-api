@@ -7,6 +7,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -22,6 +23,8 @@ import { CreateWorklogDto } from './dto/create-worklog.dto';
 import { UpdateWorklogDto } from './dto/update-worklog.dto';
 import { WorklogResponseDto } from './dto/responses/worklog-response.dto';
 import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
+import { FindWorklogsQueryDto } from './dto/find-worklogs-query.dto';
+import { PaginatedTasksResponseDto } from './dto/responses/paginated-worklogs-response.dto';
 
 import type { CurrentUser } from '../auth/types/current-user.type';
 
@@ -49,7 +52,7 @@ export class WorklogsController {
     );
   }
 
-  @ApiOkResponse({ type: WorklogResponseDto, isArray: true })
+  @ApiOkResponse({ type: PaginatedTasksResponseDto, isArray: true })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   @ApiNotFoundResponse({ description: 'Task not found' })
   @Get()
@@ -57,8 +60,9 @@ export class WorklogsController {
     @GetCurrentUser() user: CurrentUser,
     @Param('projectId') projectId: string,
     @Param('taskId') taskId: string,
+    @Query() query: FindWorklogsQueryDto,
   ) {
-    return this.worklogsService.findAll(user.id, projectId, taskId);
+    return this.worklogsService.findAll(user.id, projectId, taskId, query);
   }
 
   @ApiOkResponse({ type: WorklogResponseDto })
