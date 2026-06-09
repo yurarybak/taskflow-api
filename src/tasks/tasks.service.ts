@@ -6,15 +6,18 @@ import {
 
 import { PrismaService } from '../prisma/prisma.service';
 import { TaskActivityService } from '../task-activity/task-activity.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { FindTasksQueryDto } from './dto/find-tasks-query.dto';
 import { SetTaskMilestoneDto } from './dto/set-task-milestone.dto';
 import { createPaginationMeta } from '../common/utils/create-pagination-meta';
+import { PrismaTransactionClient } from '../prisma/types/prisma-transaction-client.type';
 import {
   WorkspaceRole,
   TaskActivityType,
   TaskStatus,
+  NotificationType,
 } from '../../generated/prisma/enums';
 
 import type { Prisma, Task } from '../../generated/prisma/client';
@@ -25,6 +28,7 @@ export class TasksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly taskActivityService: TaskActivityService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   private async ensureProjectMember(projectId: string, userId: string) {
@@ -188,6 +192,35 @@ export class TasksService {
     }
 
     return milestone;
+  }
+
+  private async createTaskAssignedNotification(
+    userId: string,
+    assigneeId: string | null,
+    task: {
+      id: string;
+      title: string;
+      projectId: string;
+    },
+    tx: PrismaTransactionClient,
+  ) {
+    if (!assigneeId || userId === assigneeId) {
+      return;
+    }
+
+    await this.notificationsService.create(
+      {
+        userId: assigneeId,
+        type: NotificationType.TASK_ASSIGNED,
+        title: 'You were assigned to a task',
+        message: task.title,
+        data: {
+          taskId: task.id,
+          projectId: task.projectId,
+        },
+      },
+      tx,
+    );
   }
 
   async create(
@@ -467,6 +500,13 @@ export class TasksService {
             to: assigneeId,
           },
         },
+        tx,
+      );
+
+      await this.createTaskAssignedNotification(
+        userId,
+        assigneeId,
+        updatedTask,
         tx,
       );
 

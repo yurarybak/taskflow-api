@@ -2,6 +2,9 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { FindWorklogsQueryDto } from './dto/find-notifications-query.dto';
 import { createPaginationMeta } from '../common/utils/create-pagination-meta';
+import { PrismaTransactionClient } from '../prisma/types/prisma-transaction-client.type';
+
+import type { CreateNotificationInput } from './types/create-notification-input.type';
 
 @Injectable()
 export class NotificationsService {
@@ -105,6 +108,14 @@ export class NotificationsService {
         id,
         userId,
       },
+    });
+  }
+
+  create(input: CreateNotificationInput, tx?: PrismaTransactionClient) {
+    const prisma = tx || this.prisma;
+
+    return prisma.notification.create({
+      data: input,
     });
   }
 }
