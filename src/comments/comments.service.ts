@@ -1,12 +1,18 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TaskActivityService } from '../task-activity/task-activity.service';
-import { WorkspaceRole, TaskActivityType } from '../../generated/prisma/enums';
+import { NotificationsService } from '../notifications/notifications.service';
+import {
+  WorkspaceRole,
+  TaskActivityType,
+  NotificationType,
+} from '../../generated/prisma/enums';
 
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 import { FindCommentsQueryDto } from './dto/find-comments-query.dto';
 import { createPaginationMeta } from '../common/utils/create-pagination-meta';
+import { PrismaTransactionClient } from '../prisma/types/prisma-transaction-client.type';
 
 import type { Prisma, TaskComment } from '../../generated/prisma/client';
 import type { PaginatedResponse } from '../common/types/paginated-response.type';
@@ -16,6 +22,7 @@ export class CommentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly taskActivityService: TaskActivityService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   private async ensureTaskMember(taskId: string, userId: string) {
@@ -31,6 +38,9 @@ export class CommentsService {
             },
           },
         },
+      },
+      include: {
+        watchers: true,
       },
     });
 
@@ -129,12 +139,49 @@ export class CommentsService {
     });
   }
 
+  private async createTaskCommentNotification(
+    actorId: string,
+    watcherIds: string[],
+    task: {
+      id: string;
+      title: string;
+      projectId: string;
+    },
+    tx: PrismaTransactionClient,
+  ) {
+    const recipientIds = watcherIds.filter(
+      (watcherId) => watcherId !== actorId,
+    );
+
+    await Promise.all(
+      recipientIds.map((recipientId) =>
+        this.notificationsService.create(
+          {
+            userId: recipientId,
+            type: NotificationType.TASK_COMMENTED,
+            title: 'New comment on a task',
+            message: task.title,
+            data: {
+              taskId: task.id,
+              projectId: task.projectId,
+            },
+          },
+          tx,
+        ),
+      ),
+    );
+  }
+
   async create(
     userId: string,
     taskId: string,
     createCommentDto: CreateCommentDto,
   ) {
-    await this.ensureTaskMember(taskId, userId);
+    const task = await this.ensureTaskMember(taskId, userId);
+
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
 
     const { content } = createCommentDto;
 
@@ -170,6 +217,12 @@ export class CommentsService {
         },
         tx,
       );
+
+      const watcherIds = task.watchers
+        .map((watcher) => watcher.userId)
+        .filter((watcherId) => watcherId !== userId);
+
+      await this.createTaskCommentNotification(userId, watcherIds, task, tx);
 
       return comment;
     });
