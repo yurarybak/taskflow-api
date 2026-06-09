@@ -34,6 +34,7 @@ model User {
   watchedTasks         TaskWatcher[]
   savedTaskFilters     SavedTaskFilter[]
   worklogs             Worklog[]
+  notifications        Notification[]
 
   @@map("users")
 }
@@ -327,4 +328,27 @@ model Worklog {
 
   @@index([taskId, startedAt])
   @@map("worklogs")
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_COMMENTED
+  TASK_STATUS_CHANGED
+  WATCHER_ADDED
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  type      NotificationType
+  title     String
+  message   String?
+  data      Json?
+  readAt    DateTime?
+  userId    String
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+  @@map("notifications")
 }
