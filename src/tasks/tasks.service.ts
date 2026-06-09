@@ -113,6 +113,7 @@ export class TasksService {
         },
       },
       include: {
+        watchers: true,
         labels: true,
         project: {
           include: {
@@ -223,6 +224,37 @@ export class TasksService {
     );
   }
 
+  private async createTaskStatusChangedNotification(
+    userId: string,
+    watcherIds: string[],
+    task: {
+      id: string;
+      title: string;
+      projectId: string;
+    },
+    tx: PrismaTransactionClient,
+  ) {
+    const recipientIds = watcherIds.filter((watcherId) => watcherId !== userId);
+
+    await Promise.all(
+      recipientIds.map((recipientId) =>
+        this.notificationsService.create(
+          {
+            userId: recipientId,
+            type: NotificationType.TASK_STATUS_CHANGED,
+            title: 'Task status was changed',
+            message: task.title,
+            data: {
+              taskId: task.id,
+              projectId: task.projectId,
+            },
+          },
+          tx,
+        ),
+      ),
+    );
+  }
+
   async create(
     creatorId: string,
     projectId: string,
@@ -310,6 +342,14 @@ export class TasksService {
               to: updateTaskDto.status,
             },
           },
+          tx,
+        );
+
+        const watcherIds = task.watchers.map((watcher) => watcher.userId);
+        await this.createTaskStatusChangedNotification(
+          userId,
+          watcherIds,
+          task,
           tx,
         );
       }
