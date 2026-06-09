@@ -5,13 +5,19 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TaskActivityService } from '../task-activity/task-activity.service';
-import { TaskActivityType } from '../../generated/prisma/enums';
+import { NotificationsService } from '../notifications/notifications.service';
+import {
+  TaskActivityType,
+  NotificationType,
+} from '../../generated/prisma/enums';
+import { PrismaTransactionClient } from '../prisma/types/prisma-transaction-client.type';
 
 @Injectable()
 export class TaskWatchersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly taskActivityService: TaskActivityService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   private async ensureUserCanAccessTask(taskId: string, userId: string) {
@@ -70,8 +76,37 @@ export class TaskWatchersService {
     });
   }
 
+  private async createWatcherAddedNotification(
+    userId: string,
+    watcherId: string,
+    task: {
+      id: string;
+      title: string;
+      projectId: string;
+    },
+    tx: PrismaTransactionClient,
+  ) {
+    if (userId === watcherId) {
+      return;
+    }
+
+    await this.notificationsService.create(
+      {
+        userId: watcherId,
+        type: NotificationType.WATCHER_ADDED,
+        title: 'You were added as a watcher',
+        message: task.title,
+        data: {
+          taskId: task.id,
+          projectId: task.projectId,
+        },
+      },
+      tx,
+    );
+  }
+
   async addWatcher(actorId: string, taskId: string, watcherUserId: string) {
-    await Promise.all([
+    const [task] = await Promise.all([
       this.ensureUserCanAccessTask(taskId, actorId),
       this.ensureUserCanAccessTask(taskId, watcherUserId),
     ]);
@@ -109,6 +144,13 @@ export class TaskWatchersService {
             watcherUserId,
           },
         },
+        tx,
+      );
+
+      await this.createWatcherAddedNotification(
+        actorId,
+        watcherUserId,
+        task,
         tx,
       );
 
