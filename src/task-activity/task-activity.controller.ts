@@ -1,4 +1,4 @@
-import { Controller, UseGuards, Get, Param } from '@nestjs/common';
+import { Controller, UseGuards, Get, Param, Query } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -10,7 +10,8 @@ import {
 import { TaskActivityService } from './task-activity.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
-import { TaskActivityResponseDto } from './dto/responses/task-activity-response.dto';
+import { FindTaskActivitiesQueryDto } from './dto/find-task-activities-query.dto';
+import { PaginatedTaskActivitiesResponseDto } from './dto/responses/paginated-task-activities-response.dto';
 
 import type { CurrentUser } from '../auth/types/current-user.type';
 
@@ -22,7 +23,7 @@ export class TaskActivityController {
 
   @ApiOperation({ summary: 'Get activity logs for a task' })
   @ApiOkResponse({
-    type: [TaskActivityResponseDto],
+    type: PaginatedTaskActivitiesResponseDto,
     description: 'List of activity logs for the specified task',
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
@@ -33,7 +34,8 @@ export class TaskActivityController {
   findAll(
     @GetCurrentUser() user: CurrentUser,
     @Param('taskId') taskId: string,
+    @Query() query: FindTaskActivitiesQueryDto,
   ) {
-    return this.taskActivityService.findAllByTask(taskId, user.id);
+    return this.taskActivityService.findAllByTask(taskId, user.id, query);
   }
 }

@@ -1,8 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { PrismaTransactionClient } from '../prisma/types/prisma-transaction-client.type';
+import { FindTaskActivitiesQueryDto } from './dto/find-task-activities-query.dto';
+import { createPaginationMeta } from '../common/utils/create-pagination-meta';
 
 import type { CreateTaskActivityInput } from './types/create-task-activity.type';
-import { PrismaTransactionClient } from '../prisma/types/prisma-transaction-client.type';
+import type { TaskActivityLog } from '../../generated/prisma/client';
+import type { PaginatedResponse } from '../common/types/paginated-response.type';
 
 @Injectable()
 export class TaskActivityService {
@@ -38,27 +42,50 @@ export class TaskActivityService {
     });
   }
 
-  async findAllByTask(taskId: string, userId: string) {
+  async findAllByTask(
+    taskId: string,
+    userId: string,
+    query: FindTaskActivitiesQueryDto,
+  ): Promise<PaginatedResponse<TaskActivityLog>> {
     await this.ensureTaskMember(taskId, userId);
 
-    return this.prisma.taskActivityLog.findMany({
-      where: {
-        taskId,
-        actorId: userId,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      include: {
-        actor: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const skip = (page - 1) * limit;
+
+    const [taskActivities, total] = await Promise.all([
+      this.prisma.taskActivityLog.findMany({
+        where: {
+          taskId,
+          actorId: userId,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip,
+        take: limit,
+        include: {
+          actor: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
           },
         },
-      },
-    });
+      }),
+      this.prisma.taskActivityLog.count({
+        where: {
+          taskId,
+          actorId: userId,
+        },
+      }),
+    ]);
+
+    return {
+      data: taskActivities,
+      meta: createPaginationMeta(total, page, limit),
+    };
   }
 }
