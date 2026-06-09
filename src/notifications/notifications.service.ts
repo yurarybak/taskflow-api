@@ -30,20 +30,13 @@ export class NotificationsService {
     const limit = query.limit ?? 10;
     const skip = (page - 1) * limit;
 
-    const readFilter =
-      query.unreadOnly === undefined
-        ? null
-        : query.unreadOnly
-          ? {
-              not: null,
-            }
-          : null;
-
     const [notifications, total] = await Promise.all([
       this.prisma.notification.findMany({
         where: {
           userId,
-          readAt: readFilter,
+          ...(query.unreadOnly && {
+            readAt: null,
+          }),
         },
         orderBy: {
           createdAt: 'desc',

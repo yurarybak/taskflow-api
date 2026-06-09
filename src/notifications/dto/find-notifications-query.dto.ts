@@ -31,6 +31,7 @@ export class FindWorklogsQueryDto {
 
   @ApiPropertyOptional({ example: true })
   @IsOptional()
+  @Transform(({ value }) => value === 'true')
   @IsBoolean()
   unreadOnly?: boolean;
 }
