@@ -25,13 +25,6 @@ import { SuccessResponseDto } from '../common/dto/responses/success-response.dto
 
 import type { CurrentUser } from '../auth/types/current-user.type';
 
-// TODO:
-// POST   /projects/:projectId/tasks/:taskId/worklogs
-// GET    /projects/:projectId/tasks/:taskId/worklogs
-// GET    /projects/:projectId/tasks/:taskId/worklogs/:id
-// PATCH  /projects/:projectId/tasks/:taskId/worklogs/:id
-// DELETE /projects/:projectId/tasks/:taskId/worklogs/:id
-
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('/projects/:projectId/tasks/:taskId/worklogs')
@@ -44,8 +37,8 @@ export class WorklogsController {
   @Post()
   create(
     @GetCurrentUser() user: CurrentUser,
-    @Param('/:projectId') projectId: string,
-    @Param('/:taskId') taskId: string,
+    @Param('projectId') projectId: string,
+    @Param('taskId') taskId: string,
     @Body() createWorklogDto: CreateWorklogDto,
   ) {
     return this.worklogsService.create(
@@ -62,8 +55,8 @@ export class WorklogsController {
   @Get()
   findAll(
     @GetCurrentUser() user: CurrentUser,
-    @Param('/:projectId') projectId: string,
-    @Param('/:taskId') taskId: string,
+    @Param('projectId') projectId: string,
+    @Param('taskId') taskId: string,
   ) {
     return this.worklogsService.findAll(user.id, projectId, taskId);
   }
@@ -74,9 +67,9 @@ export class WorklogsController {
   @Get('/:id')
   findOne(
     @GetCurrentUser() user: CurrentUser,
-    @Param('/:projectId') projectId: string,
-    @Param('/:taskId') taskId: string,
-    @Param('/:id') id: string,
+    @Param('projectId') projectId: string,
+    @Param('taskId') taskId: string,
+    @Param('id') id: string,
   ) {
     return this.worklogsService.findOne(user.id, projectId, taskId, id);
   }
@@ -87,9 +80,9 @@ export class WorklogsController {
   @Patch('/:id')
   update(
     @GetCurrentUser() user: CurrentUser,
-    @Param('/:projectId') projectId: string,
-    @Param('/:taskId') taskId: string,
-    @Param('/:id') id: string,
+    @Param('projectId') projectId: string,
+    @Param('taskId') taskId: string,
+    @Param('id') id: string,
     @Body() updateWorklogDto: UpdateWorklogDto,
   ) {
     return this.worklogsService.update(
@@ -107,9 +100,9 @@ export class WorklogsController {
   @Delete('/:id')
   async remove(
     @GetCurrentUser() user: CurrentUser,
-    @Param('/:projectId') projectId: string,
-    @Param('/:taskId') taskId: string,
-    @Param('/:id') id: string,
+    @Param('projectId') projectId: string,
+    @Param('taskId') taskId: string,
+    @Param('id') id: string,
   ) {
     await this.worklogsService.remove(user.id, projectId, taskId, id);
 
