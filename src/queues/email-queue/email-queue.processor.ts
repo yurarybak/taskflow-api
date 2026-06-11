@@ -1,6 +1,7 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import { Job } from 'bullmq';
+import { Logger } from '@nestjs/common';
 
 import { EmailService } from '../../email/email.service';
 import { EMAIL_JOBS, EMAIL_QUEUE } from './email-queue.constants';
@@ -12,6 +13,8 @@ export class EmailQueueProcessor extends WorkerHost {
   constructor(private readonly emailService: EmailService) {
     super();
   }
+
+  private readonly logger = new Logger(EmailQueueProcessor.name);
 
   async process(job: Job<SendPasswordResetEmailJobPayload>) {
     switch (job.name) {
@@ -25,5 +28,20 @@ export class EmailQueueProcessor extends WorkerHost {
       default:
         throw new Error(`Unknown notification job: ${job.name}`);
     }
+  }
+
+  @OnWorkerEvent('active')
+  onActive(job: Job) {
+    this.logger.log(`Job ${job.id} started: ${job.name}`);
+  }
+
+  @OnWorkerEvent('completed')
+  onCompleted(job: Job) {
+    this.logger.log(`Job ${job.id} completed: ${job.name}`);
+  }
+
+  @OnWorkerEvent('failed')
+  onFailed(job: Job, error: Error) {
+    this.logger.error(`Job ${job.id} failed: ${job.name}`, error.stack);
   }
 }
