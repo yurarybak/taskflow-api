@@ -2,10 +2,10 @@ import { Module } from '@nestjs/common';
 import { CommentsService } from './comments.service';
 import { CommentsController } from './comments.controller';
 import { TaskActivityModule } from '../task-activity/task-activity.module';
-import { NotificationsModule } from '../notifications/notifications.module';
+import { NotificationsQueueModule } from '../queues/notifications-queue/notifications-queue.module';
 
 @Module({
-  imports: [TaskActivityModule, NotificationsModule],
+  imports: [TaskActivityModule, NotificationsQueueModule],
   providers: [CommentsService],
   controllers: [CommentsController],
 })

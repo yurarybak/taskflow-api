@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TaskActivityService } from '../task-activity/task-activity.service';
-import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationsQueueService } from '../queues/notifications-queue/notifications-queue.service';
 import {
   WorkspaceRole,
   TaskActivityType,
@@ -13,7 +13,6 @@ import { UpdateCommentDto } from './dto/update-comment.dto';
 import { FindCommentsQueryDto } from './dto/find-comments-query.dto';
 import { createPaginationMeta } from '../common/utils/create-pagination-meta';
 import { extractMentionUserIds } from '../common/utils/extract-mention-user-ids';
-import { PrismaTransactionClient } from '../prisma/types/prisma-transaction-client.type';
 
 import type { Prisma, TaskComment } from '../../generated/prisma/client';
 import type { PaginatedResponse } from '../common/types/paginated-response.type';
@@ -23,7 +22,7 @@ export class CommentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly taskActivityService: TaskActivityService,
-    private readonly notificationsService: NotificationsService,
+    private readonly notificationsQueueService: NotificationsQueueService,
   ) {}
 
   private async ensureTaskMember(taskId: string, userId: string) {
@@ -161,7 +160,6 @@ export class CommentsService {
       title: string;
       projectId: string;
     },
-    tx: PrismaTransactionClient,
   ) {
     const recipientIds = watcherIds.filter(
       (watcherId) => watcherId !== actorId,
@@ -169,19 +167,16 @@ export class CommentsService {
 
     await Promise.all(
       recipientIds.map((recipientId) =>
-        this.notificationsService.create(
-          {
-            userId: recipientId,
-            type: NotificationType.TASK_COMMENTED,
-            title: 'New comment on a task',
-            message: task.title,
-            data: {
-              taskId: task.id,
-              projectId: task.projectId,
-            },
+        this.notificationsQueueService.addCreateNotificationJob({
+          userId: recipientId,
+          type: NotificationType.TASK_COMMENTED,
+          title: 'New comment on a task',
+          message: task.title,
+          data: {
+            taskId: task.id,
+            projectId: task.projectId,
           },
-          tx,
-        ),
+        }),
       ),
     );
   }
@@ -202,7 +197,6 @@ export class CommentsService {
       };
     },
     excludedUserIds: string[],
-    tx: PrismaTransactionClient,
   ) {
     const mentionedUserIds = extractMentionUserIds(content);
 
@@ -219,19 +213,16 @@ export class CommentsService {
 
     await Promise.all(
       recipientIds.map((recipientId) =>
-        this.notificationsService.create(
-          {
-            userId: recipientId,
-            type: NotificationType.TASK_MENTIONED,
-            title: 'You were mentioned in a comment',
-            message: task.title,
-            data: {
-              taskId: task.id,
-              projectId: task.projectId,
-            },
+        this.notificationsQueueService.addCreateNotificationJob({
+          userId: recipientId,
+          type: NotificationType.TASK_MENTIONED,
+          title: 'You were mentioned in a comment',
+          message: task.title,
+          data: {
+            taskId: task.id,
+            projectId: task.projectId,
           },
-          tx,
-        ),
+        }),
       ),
     );
   }
@@ -286,14 +277,13 @@ export class CommentsService {
         .map((watcher) => watcher.userId)
         .filter((watcherId) => watcherId !== userId);
 
-      await this.createTaskCommentNotification(userId, watcherIds, task, tx);
+      await this.createTaskCommentNotification(userId, watcherIds, task);
 
       await this.createTaskMentionedNotifications(
         content,
         userId,
         task,
         watcherIds,
-        tx,
       );
 
       return comment;
