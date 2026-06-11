@@ -2,10 +2,10 @@ import { Module } from '@nestjs/common';
 import { TaskWatchersService } from './task-watchers.service';
 import { TaskWatchersController } from './task-watchers.controller';
 import { TaskActivityModule } from '../task-activity/task-activity.module';
-import { NotificationsModule } from '../notifications/notifications.module';
+import { NotificationsQueueModule } from '../queues/notifications-queue/notifications-queue.module';
 
 @Module({
-  imports: [TaskActivityModule, NotificationsModule],
+  imports: [TaskActivityModule, NotificationsQueueModule],
   providers: [TaskWatchersService],
   controllers: [TaskWatchersController],
 })
