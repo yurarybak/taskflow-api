@@ -338,6 +338,7 @@ enum NotificationType {
   TASK_STATUS_CHANGED
   WATCHER_ADDED
   TASK_MENTIONED
+  TASK_REMINDER
 }
 
 model Notification {
