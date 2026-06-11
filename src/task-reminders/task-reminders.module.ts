@@ -4,6 +4,7 @@ import { TaskRemindersController } from './task-reminders.controller';
 
 @Module({
   providers: [TaskRemindersService],
-  controllers: [TaskRemindersController]
+  controllers: [TaskRemindersController],
+  exports: [TaskRemindersService],
 })
 export class TaskRemindersModule {}

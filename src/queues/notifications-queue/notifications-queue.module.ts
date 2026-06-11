@@ -4,6 +4,7 @@ import { BullBoardModule } from '@bull-board/nestjs';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 
 import { NotificationsModule } from '../../notifications/notifications.module';
+import { TaskRemindersModule } from '../../task-reminders/task-reminders.module';
 import { NOTIFICATIONS_QUEUE } from './notifications-queue.constants';
 import { NotificationsQueueProcessor } from './notifications-queue.processor';
 import { NotificationsQueueService } from './notifications-queue.service';
@@ -18,6 +19,7 @@ import { NotificationsQueueService } from './notifications-queue.service';
       adapter: BullMQAdapter,
     }),
     NotificationsModule,
+    TaskRemindersModule,
   ],
   providers: [NotificationsQueueService, NotificationsQueueProcessor],
   exports: [NotificationsQueueService],
