@@ -23,6 +23,7 @@ import { WorklogsModule } from './worklogs/worklogs.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { NotificationsQueueModule } from './queues/notifications-queue/notifications-queue.module';
 import { EmailQueueModule } from './queues/email-queue/email-queue.module';
+import { TaskRemindersModule } from './task-reminders/task-reminders.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { EmailQueueModule } from './queues/email-queue/email-queue.module';
     NotificationsModule,
     NotificationsQueueModule,
     EmailQueueModule,
+    TaskRemindersModule,
   ],
 })
 export class AppModule {}
