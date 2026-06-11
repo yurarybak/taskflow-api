@@ -6,7 +6,7 @@ import {
 
 import { PrismaService } from '../prisma/prisma.service';
 import { TaskActivityService } from '../task-activity/task-activity.service';
-import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationsQueueService } from '../queues/notifications-queue/notifications-queue.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { FindTasksQueryDto } from './dto/find-tasks-query.dto';
@@ -28,7 +28,7 @@ export class TasksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly taskActivityService: TaskActivityService,
-    private readonly notificationsService: NotificationsService,
+    private readonly notificationsQueueService: NotificationsQueueService,
   ) {}
 
   private async ensureProjectMember(projectId: string, userId: string) {
@@ -203,25 +203,21 @@ export class TasksService {
       title: string;
       projectId: string;
     },
-    tx: PrismaTransactionClient,
   ) {
     if (!assigneeId || userId === assigneeId) {
       return;
     }
 
-    await this.notificationsService.create(
-      {
-        userId: assigneeId,
-        type: NotificationType.TASK_ASSIGNED,
-        title: 'You were assigned to a task',
-        message: task.title,
-        data: {
-          taskId: task.id,
-          projectId: task.projectId,
-        },
+    await this.notificationsQueueService.addCreateNotificationJob({
+      userId: assigneeId,
+      type: NotificationType.TASK_ASSIGNED,
+      title: 'You were assigned to a task',
+      message: task.title,
+      data: {
+        taskId: task.id,
+        projectId: task.projectId,
       },
-      tx,
-    );
+    });
   }
 
   private async createTaskStatusChangedNotification(
@@ -232,25 +228,21 @@ export class TasksService {
       title: string;
       projectId: string;
     },
-    tx: PrismaTransactionClient,
   ) {
     const recipientIds = watcherIds.filter((watcherId) => watcherId !== userId);
 
     await Promise.all(
       recipientIds.map((recipientId) =>
-        this.notificationsService.create(
-          {
-            userId: recipientId,
-            type: NotificationType.TASK_STATUS_CHANGED,
-            title: 'Task status was changed',
-            message: task.title,
-            data: {
-              taskId: task.id,
-              projectId: task.projectId,
-            },
+        this.notificationsQueueService.addCreateNotificationJob({
+          userId: recipientId,
+          type: NotificationType.TASK_STATUS_CHANGED,
+          title: 'Task status was changed',
+          message: task.title,
+          data: {
+            taskId: task.id,
+            projectId: task.projectId,
           },
-          tx,
-        ),
+        }),
       ),
     );
   }
@@ -350,7 +342,6 @@ export class TasksService {
           userId,
           watcherIds,
           task,
-          tx,
         );
       }
 
@@ -547,7 +538,6 @@ export class TasksService {
         userId,
         assigneeId,
         updatedTask,
-        tx,
       );
 
       return updatedTask;

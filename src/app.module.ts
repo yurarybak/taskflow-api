@@ -18,6 +18,7 @@ import { SavedTaskFiltersModule } from './saved-task-filters/saved-task-filters.
 import { WorklogsModule } from './worklogs/worklogs.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { BullModule } from '@nestjs/bullmq';
+import { NotificationsQueueModule } from './queues/notifications-queue/notifications-queue.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { BullModule } from '@nestjs/bullmq';
     SavedTaskFiltersModule,
     WorklogsModule,
     NotificationsModule,
+    NotificationsQueueModule,
   ],
 })
 export class AppModule {}
