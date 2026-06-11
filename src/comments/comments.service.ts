@@ -12,6 +12,7 @@ import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 import { FindCommentsQueryDto } from './dto/find-comments-query.dto';
 import { createPaginationMeta } from '../common/utils/create-pagination-meta';
+import { extractMentionUserIds } from '../common/utils/extract-mention-user-ids';
 import { PrismaTransactionClient } from '../prisma/types/prisma-transaction-client.type';
 
 import type { Prisma, TaskComment } from '../../generated/prisma/client';
@@ -41,6 +42,19 @@ export class CommentsService {
       },
       include: {
         watchers: true,
+        project: {
+          include: {
+            workspace: {
+              include: {
+                members: {
+                  select: {
+                    userId: true,
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     });
 
@@ -172,6 +186,56 @@ export class CommentsService {
     );
   }
 
+  private async createTaskMentionedNotifications(
+    content: string,
+    actorId: string,
+    task: {
+      id: string;
+      title: string;
+      projectId: string;
+      project: {
+        workspace: {
+          members: {
+            userId: string;
+          }[];
+        };
+      };
+    },
+    excludedUserIds: string[],
+    tx: PrismaTransactionClient,
+  ) {
+    const mentionedUserIds = extractMentionUserIds(content);
+
+    const workspaceMemberIds = new Set(
+      task.project.workspace.members.map((member) => member.userId),
+    );
+
+    const recipientIds = mentionedUserIds.filter(
+      (mentionedUserId) =>
+        mentionedUserId !== actorId &&
+        workspaceMemberIds.has(mentionedUserId) &&
+        !excludedUserIds.includes(mentionedUserId),
+    );
+
+    await Promise.all(
+      recipientIds.map((recipientId) =>
+        this.notificationsService.create(
+          {
+            userId: recipientId,
+            type: NotificationType.TASK_MENTIONED,
+            title: 'You were mentioned in a comment',
+            message: task.title,
+            data: {
+              taskId: task.id,
+              projectId: task.projectId,
+            },
+          },
+          tx,
+        ),
+      ),
+    );
+  }
+
   async create(
     userId: string,
     taskId: string,
@@ -223,6 +287,14 @@ export class CommentsService {
         .filter((watcherId) => watcherId !== userId);
 
       await this.createTaskCommentNotification(userId, watcherIds, task, tx);
+
+      await this.createTaskMentionedNotifications(
+        content,
+        userId,
+        task,
+        watcherIds,
+        tx,
+      );
 
       return comment;
     });
