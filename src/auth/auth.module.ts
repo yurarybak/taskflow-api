@@ -8,12 +8,12 @@ import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
-import { EmailModule } from 'src/email/email.module';
+import { EmailQueueModule } from '../queues/email-queue/email-queue.module';
 
 @Module({
   imports: [
     UsersModule,
-    EmailModule,
+    EmailQueueModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

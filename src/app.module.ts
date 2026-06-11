@@ -1,5 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { BullModule } from '@nestjs/bullmq';
+import { BullBoardModule } from '@bull-board/nestjs';
+import { ExpressAdapter } from '@bull-board/express';
+
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
@@ -17,8 +21,8 @@ import { MilestonesModule } from './milestones/milestones.module';
 import { SavedTaskFiltersModule } from './saved-task-filters/saved-task-filters.module';
 import { WorklogsModule } from './worklogs/worklogs.module';
 import { NotificationsModule } from './notifications/notifications.module';
-import { BullModule } from '@nestjs/bullmq';
 import { NotificationsQueueModule } from './queues/notifications-queue/notifications-queue.module';
+import { EmailQueueModule } from './queues/email-queue/email-queue.module';
 
 @Module({
   imports: [
@@ -31,6 +35,10 @@ import { NotificationsQueueModule } from './queues/notifications-queue/notificat
           port: Number(configService.getOrThrow<string>('REDIS_PORT')),
         },
       }),
+    }),
+    BullBoardModule.forRoot({
+      route: '/admin/queues',
+      adapter: ExpressAdapter,
     }),
     PrismaModule,
     UsersModule,
@@ -50,6 +58,7 @@ import { NotificationsQueueModule } from './queues/notifications-queue/notificat
     WorklogsModule,
     NotificationsModule,
     NotificationsQueueModule,
+    EmailQueueModule,
   ],
 })
 export class AppModule {}

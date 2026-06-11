@@ -25,8 +25,12 @@ export class NotificationsQueueService {
           type: 'exponential',
           delay: 1000,
         },
-        removeOnComplete: true,
-        removeOnFail: false,
+        removeOnComplete: {
+          count: 100,
+        },
+        removeOnFail: {
+          count: 1000,
+        },
       },
     );
   }

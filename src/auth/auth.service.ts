@@ -11,7 +11,7 @@ import type { StringValue } from 'ms';
 
 import { UsersService } from '../users/users.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { EmailService } from 'src/email/email.service';
+import { EmailQueueService } from '../queues/email-queue/email-queue.service';
 
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -30,8 +30,8 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
-    private readonly emailService: EmailService,
-  ) { }
+    private readonly emailQueueService: EmailQueueService,
+  ) {}
 
   async register(registerDto: RegisterDto) {
     const existingUser = await this.usersService.findByEmail(registerDto.email);
@@ -300,11 +300,11 @@ export class AuthService {
     const frontendUrl = this.configService.getOrThrow<string>('FRONTEND_URL');
     const resetLink = `${frontendUrl}/reset-password?token=${resetToken}`;
 
-    await this.emailService.sendPasswordResetEmail(
-      user.email,
+    await this.emailQueueService.addSendPasswordResetEmailJob({
+      to: user.email,
       fullName,
       resetLink,
-    );
+    });
   }
 
   async resetPassword(resetPasswordDto: ResetPasswordDto) {

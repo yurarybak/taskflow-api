@@ -13,6 +13,8 @@ export class EmailService {
     fullName: string,
     resetLink: string,
   ): Promise<void> {
+    console.log('here1111111111111111111');
+
     await sgMail.send({
       to: email,
       from: {
