@@ -4,6 +4,7 @@ import { Queue } from 'bullmq';
 
 import { EMAIL_JOBS, EMAIL_QUEUE } from './email-queue.constants';
 import { SendPasswordResetEmailJobPayload } from './types/send-password-reset-email-job-payload.type';
+import { defaultJobOptions } from '../config/default-job-options';
 
 @Injectable()
 export class EmailQueueService {
@@ -16,16 +17,10 @@ export class EmailQueueService {
     payload: SendPasswordResetEmailJobPayload,
   ) {
     await this.emailQueue.add(EMAIL_JOBS.SEND_PASSWORD_RESET_EMAIL, payload, {
-      attempts: 3,
+      ...defaultJobOptions,
       backoff: {
         type: 'exponential',
         delay: 5000,
-      },
-      removeOnComplete: {
-        count: 100,
-      },
-      removeOnFail: {
-        count: 1000,
       },
     });
   }

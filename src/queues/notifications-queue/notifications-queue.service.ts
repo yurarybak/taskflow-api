@@ -7,6 +7,7 @@ import {
   NOTIFICATIONS_QUEUE,
 } from './notifications-queue.constants';
 import { CreateNotificationJobPayload } from './types/create-notification-job-payload.type';
+import { defaultJobOptions } from '../config/default-job-options';
 
 @Injectable()
 export class NotificationsQueueService {
@@ -19,19 +20,7 @@ export class NotificationsQueueService {
     await this.notificationsQueue.add(
       NOTIFICATION_JOBS.CREATE_NOTIFICATION,
       payload,
-      {
-        attempts: 3,
-        backoff: {
-          type: 'exponential',
-          delay: 1000,
-        },
-        removeOnComplete: {
-          count: 100,
-        },
-        removeOnFail: {
-          count: 1000,
-        },
-      },
+      defaultJobOptions,
     );
   }
 }
