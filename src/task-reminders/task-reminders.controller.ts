@@ -6,6 +6,7 @@ import {
   HttpCode,
   Param,
   Post,
+  Patch,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -15,12 +16,14 @@ import {
   ApiOkResponse,
   ApiTags,
   ApiUnauthorizedResponse,
+  ApiBadRequestResponse,
 } from '@nestjs/swagger';
 
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
 import { CreateTaskReminderDto } from './dto/create-task-reminder.dto';
+import { UpdateTaskReminderDto } from './dto/update-task-reminder.dto';
 import { TaskReminderResponseDto } from './dto/responses/task-reminder-response.dto';
 import { TaskRemindersService } from './task-reminders.service';
 
@@ -73,5 +76,27 @@ export class TaskRemindersController {
     await this.taskRemindersService.remove(user.id, taskId, id);
 
     return { success: true };
+  }
+
+  @ApiOkResponse({ type: TaskReminderResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiNotFoundResponse({ description: 'Task reminder not found' })
+  @ApiBadRequestResponse({
+    description: 'Invalid reminder date or reminder already sent',
+  })
+  @Patch(':id')
+  @Patch(':id')
+  update(
+    @GetCurrentUser() user: CurrentUser,
+    @Param('taskId') taskId: string,
+    @Param('id') id: string,
+    @Body() updateTaskReminderDto: UpdateTaskReminderDto,
+  ) {
+    return this.taskRemindersService.update(
+      user.id,
+      taskId,
+      id,
+      updateTaskReminderDto,
+    );
   }
 }
