@@ -43,8 +43,8 @@ export class TaskRemindersController {
     @Body() createTaskReminderDto: CreateTaskReminderDto,
   ) {
     return this.taskRemindersService.create(
-      user.id,
       taskId,
+      user.id,
       createTaskReminderDto,
     );
   }

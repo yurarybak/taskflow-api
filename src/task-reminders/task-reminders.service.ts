@@ -101,7 +101,7 @@ export class TaskRemindersService {
       },
     });
 
-    const jobId = `task-reminder:${reminder.id}`;
+    const jobId = `task-reminder-${reminder.id}`;
 
     await this.notificationsQueueService.addSendTaskReminderJob(
       { reminderId: reminder.id },
@@ -119,7 +119,7 @@ export class TaskRemindersService {
     });
   }
 
-  async findAll(taskId: string, userId: string) {
+  async findAll(userId: string, taskId: string) {
     await this.ensureTaskMember(taskId, userId);
 
     return this.prisma.taskReminder.findMany({
@@ -133,7 +133,7 @@ export class TaskRemindersService {
     });
   }
 
-  async remove(taskId: string, userId: string, id: string) {
+  async remove(userId: string, taskId: string, id: string) {
     await this.ensureTaskMember(taskId, userId);
 
     const reminder = await this.prisma.taskReminder.findFirst({

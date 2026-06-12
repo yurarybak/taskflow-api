@@ -16,7 +16,7 @@ export class TaskReminderResponseDto {
   @ApiProperty({ example: 'user-id' })
   userId!: string;
 
-  @ApiPropertyOptional({ example: 'task-reminder:reminder-id' })
+  @ApiPropertyOptional({ example: 'task-reminder-reminder-id' })
   jobId?: string | null;
 
   @ApiProperty({ example: '2026-06-11T10:00:00.000Z' })
