@@ -1,5 +1,5 @@
 import { BullModule } from '@nestjs/bullmq';
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { BullBoardModule } from '@bull-board/nestjs';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 
@@ -18,8 +18,8 @@ import { NotificationsQueueService } from './notifications-queue.service';
       name: NOTIFICATIONS_QUEUE,
       adapter: BullMQAdapter,
     }),
+    forwardRef(() => TaskRemindersModule),
     NotificationsModule,
-    TaskRemindersModule,
   ],
   providers: [NotificationsQueueService, NotificationsQueueProcessor],
   exports: [NotificationsQueueService],

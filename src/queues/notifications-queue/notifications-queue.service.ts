@@ -30,7 +30,7 @@ export class NotificationsQueueService {
   }
 
   async addSendTaskReminderJob(
-    payload: CreateNotificationJobPayload,
+    payload: SendTaskReminderJobPayload,
     remindAt: Date,
     jobId: string,
   ) {
@@ -45,5 +45,15 @@ export class NotificationsQueueService {
         delay: Math.max(delay, 0),
       },
     );
+  }
+
+  async removeJob(jobId: string) {
+    const job = await this.notificationsQueue.getJob(jobId);
+
+    if (!job) {
+      return;
+    }
+
+    await job.remove();
   }
 }
