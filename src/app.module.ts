@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { BullModule } from '@nestjs/bullmq';
 import { BullBoardModule } from '@bull-board/nestjs';
@@ -24,6 +24,8 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { NotificationsQueueModule } from './queues/notifications-queue/notifications-queue.module';
 import { EmailQueueModule } from './queues/email-queue/email-queue.module';
 import { TaskRemindersModule } from './task-reminders/task-reminders.module';
+
+import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 
 @Module({
   imports: [
@@ -63,4 +65,8 @@ import { TaskRemindersModule } from './task-reminders/task-reminders.module';
     TaskRemindersModule,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestLoggerMiddleware).forRoutes('*');
+  }
+}
