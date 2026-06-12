@@ -26,6 +26,7 @@ import { EmailQueueModule } from './queues/email-queue/email-queue.module';
 import { TaskRemindersModule } from './task-reminders/task-reminders.module';
 
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
+import { TaskExportsModule } from './task-exports/task-exports.module';
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { RequestLoggerMiddleware } from './common/middleware/request-logger.midd
     NotificationsQueueModule,
     EmailQueueModule,
     TaskRemindersModule,
+    TaskExportsModule,
   ],
 })
 export class AppModule implements NestModule {
