@@ -25,6 +25,7 @@ export class TaskExportQueueProcessor extends WorkerHost {
       case TASK_EXPORT_JOBS.EXPORT_PROJECT_TASKS_CSV:
         return this.taskExportsService.generateProjectTasksCsv(
           job.data.exportId,
+          job,
         );
       default:
         throw new Error(`Unknown notification job: ${job.name}`);

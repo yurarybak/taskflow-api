@@ -6,6 +6,9 @@ import {
 import { mkdir, writeFile, unlink } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
+import { Job } from 'bullmq';
+
+import { ExportProjectTasksCsvJobPayload } from '../queues/task-export-queue/types/export-project-tasks-csv-job-payload.type';
 import { PrismaService } from '../prisma/prisma.service';
 
 import { TaskExportQueueService } from '../queues/task-export-queue/task-export-queue.service';
@@ -257,6 +260,23 @@ export class TaskExportsService {
     };
   }
 
+  private async updateExportProgress(
+    exportId: string,
+    progress: number,
+    job?: Job<ExportProjectTasksCsvJobPayload>,
+  ) {
+    await this.prisma.taskExport.update({
+      where: {
+        id: exportId,
+      },
+      data: {
+        progress,
+      },
+    });
+
+    await job?.updateProgress(progress);
+  }
+
   async findOne(exportId: string) {
     const taskExport = await this.prisma.taskExport.findFirst({
       where: {
@@ -271,7 +291,10 @@ export class TaskExportsService {
     return taskExport;
   }
 
-  async generateProjectTasksCsv(exportId: string) {
+  async generateProjectTasksCsv(
+    exportId: string,
+    job?: Job<ExportProjectTasksCsvJobPayload>,
+  ) {
     const taskExport = await this.prisma.taskExport.findUnique({
       where: {
         id: exportId,
@@ -289,8 +312,10 @@ export class TaskExportsService {
       data: {
         status: TaskExportStatus.PROCESSING,
         error: null,
+        progress: 5,
       },
     });
+    await job?.updateProgress(5);
 
     try {
       const filters = this.parseExportFilters(taskExport.filters);
@@ -330,6 +355,8 @@ export class TaskExportsService {
         },
       });
 
+      await this.updateExportProgress(exportId, 30, job);
+
       await mkdir(this.exportDirectory, { recursive: true });
 
       const fileName = `taskflow-tasks-${new Date()
@@ -340,19 +367,28 @@ export class TaskExportsService {
 
       const csv = this.buildTasksCsv(tasks);
 
+      await this.updateExportProgress(exportId, 60, job);
+
       await writeFile(filePath, csv, 'utf8');
 
-      return this.prisma.taskExport.update({
+      await this.updateExportProgress(exportId, 90, job);
+
+      const updateTaskExport = await this.prisma.taskExport.update({
         where: {
           id: exportId,
         },
         data: {
           status: TaskExportStatus.COMPLETED,
+          progress: 100,
           fileName,
           storageName,
           completedAt: new Date(),
         },
       });
+
+      await job?.updateProgress(100);
+
+      return updateTaskExport;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
 

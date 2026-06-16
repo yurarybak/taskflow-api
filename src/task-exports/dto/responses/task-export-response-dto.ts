@@ -43,4 +43,7 @@ export class TaskExportResponseDto {
 
   @ApiPropertyOptional({ example: 'task-export-export-id' })
   jobId?: string | null;
+
+  @ApiProperty({ example: 0, minimum: 0, maximum: 100 })
+  progress!: number;
 }
