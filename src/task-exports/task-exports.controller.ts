@@ -127,6 +127,10 @@ export class TaskExportsController {
     return response.download(filePath, fileName);
   }
 
+  @ApiOkResponse({ type: SuccessResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiBadRequestResponse({ description: 'Task export cannot be cancelled' })
+  @ApiNotFoundResponse({ description: 'Task export not found' })
   @Patch(':id/cancel')
   async cancel(
     @GetCurrentUser() user: CurrentUser,
