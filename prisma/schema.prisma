@@ -388,6 +388,7 @@ enum TaskExportStatus {
 model TaskExport {
   id          String           @id @default(uuid())
   status      TaskExportStatus @default(PENDING)
+  progress    Int              @default(0)
   fileName    String?
   storageName String?          @unique
   error       String?
