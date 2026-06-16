@@ -14,8 +14,9 @@ import { CreateTaskExportDto } from './dto/create-task-export.dto';
 import { createPaginationMeta } from '../common/utils/create-pagination-meta';
 import { TaskExportStatus } from '../../generated/prisma/enums';
 
-import type { TaskExport } from '../../generated/prisma/client';
+import type { Prisma, TaskExport } from '../../generated/prisma/client';
 import type { PaginatedResponse } from '../common/types/paginated-response.type';
+import type { TaskExportFilters } from './types/task-export-filters.type';
 
 @Injectable()
 export class TaskExportsService {
@@ -178,6 +179,84 @@ export class TaskExportsService {
     return `${fullName} (${user.email})`;
   }
 
+  private parseExportFilters(filters: Prisma.JsonValue): TaskExportFilters {
+    if (!filters || typeof filters !== 'object' || Array.isArray(filters)) {
+      return {};
+    }
+
+    return filters;
+  }
+
+  private buildTaskExportWhere(
+    projectId: string,
+    filters: TaskExportFilters,
+  ): Prisma.TaskWhereInput {
+    return {
+      projectId,
+      ...(!filters.includeArchived && {
+        archivedAt: null,
+      }),
+      ...(filters.statuses?.length && {
+        status: {
+          in: filters.statuses,
+        },
+      }),
+      ...(filters.priorities?.length && {
+        priority: {
+          in: filters.priorities,
+        },
+      }),
+      ...(filters.types?.length && {
+        type: {
+          in: filters.types,
+        },
+      }),
+      ...(filters.assigneeIds?.length &&
+        !filters.withoutAssignee && {
+          assigneeId: {
+            in: filters.assigneeIds,
+          },
+        }),
+      ...(filters.withoutAssignee && {
+        assigneeId: null,
+      }),
+      ...(filters.milestoneIds?.length &&
+        !filters.withoutMilestone && {
+          milestoneId: {
+            in: filters.milestoneIds,
+          },
+        }),
+      ...(filters.withoutMilestone && {
+        milestoneId: null,
+      }),
+      ...(filters.labelIds?.length && {
+        labels: {
+          some: {
+            id: {
+              in: filters.labelIds,
+            },
+          },
+        },
+      }),
+      ...(filters.search && {
+        OR: [
+          {
+            title: {
+              contains: filters.search,
+              mode: 'insensitive',
+            },
+          },
+          {
+            description: {
+              contains: filters.search,
+              mode: 'insensitive',
+            },
+          },
+        ],
+      }),
+    };
+  }
+
   async findOne(exportId: string) {
     const taskExport = await this.prisma.taskExport.findFirst({
       where: {
@@ -214,10 +293,12 @@ export class TaskExportsService {
     });
 
     try {
+      const filters = this.parseExportFilters(taskExport.filters);
+
+      const where = this.buildTaskExportWhere(taskExport.projectId, filters);
+
       const tasks = await this.prisma.task.findMany({
-        where: {
-          projectId: taskExport.projectId,
-        },
+        where,
         include: {
           assignee: {
             select: {
