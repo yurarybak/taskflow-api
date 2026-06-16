@@ -611,4 +611,45 @@ export class TaskExportsService {
       },
     });
   }
+
+  async retry(userId: string, projectId: string, id: string) {
+    const taskExport = await this.findOneByMember(userId, projectId, id);
+
+    if (
+      taskExport.status !== TaskExportStatus.FAILED &&
+      taskExport.status !== TaskExportStatus.CANCELLED
+    ) {
+      throw new BadRequestException(
+        'Only failed or cancelled exports can be retried',
+      );
+    }
+
+    const jobId = `task-export-${taskExport.id}-${Date.now()}`;
+
+    await this.taskExportQueueService.addExportProjectTasksCsvJob(
+      {
+        exportId: taskExport.id,
+      },
+      jobId,
+    );
+
+    await this.prisma.taskExport.update({
+      where: {
+        id: taskExport.id,
+      },
+      data: {
+        status: TaskExportStatus.PENDING,
+        progress: 0,
+        error: null,
+        jobId,
+        completedAt: null,
+      },
+    });
+  }
+
+  private delay(ms: number) {
+    return new Promise((resolve) => {
+      setTimeout(resolve, ms);
+    });
+  }
 }

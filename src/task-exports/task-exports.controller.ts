@@ -143,4 +143,23 @@ export class TaskExportsController {
       success: true,
     };
   }
+
+  @ApiOkResponse({ type: SuccessResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiBadRequestResponse({
+    description: 'Only failed or cancelled exports can be retried',
+  })
+  @ApiNotFoundResponse({ description: 'Task export not found' })
+  @Patch(':id/retry')
+  async retry(
+    @GetCurrentUser() user: CurrentUser,
+    @Param('projectId') projectId: string,
+    @Param('id') id: string,
+  ) {
+    await this.taskExportsService.retry(user.id, projectId, id);
+
+    return {
+      success: true,
+    };
+  }
 }
