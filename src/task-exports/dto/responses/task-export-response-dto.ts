@@ -32,4 +32,12 @@ export class TaskExportResponseDto {
 
   @ApiPropertyOptional({ example: '2026-06-12T10:01:00.000Z' })
   completedAt?: Date | null;
+
+  @ApiPropertyOptional({
+    example: {
+      statuses: ['TODO'],
+      includeArchived: false,
+    },
+  })
+  filters?: Record<string, unknown> | null;
 }
