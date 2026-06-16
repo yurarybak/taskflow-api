@@ -382,6 +382,7 @@ enum TaskExportStatus {
   PROCESSING
   COMPLETED
   FAILED
+  CANCELLED
 }
 
 model TaskExport {
@@ -392,6 +393,7 @@ model TaskExport {
   error       String?
   projectId   String
   userId      String
+  jobId       String?          @unique
   filters     Json?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
