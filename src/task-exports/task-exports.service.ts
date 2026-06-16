@@ -398,8 +398,18 @@ export class TaskExportsService {
       },
     });
 
-    await this.taskExportQueueService.addExportProjectTasksCsvJob({
-      exportId: taskExport.id,
+    const jobId = `task-export-${taskExport.id}`;
+
+    await this.taskExportQueueService.addExportProjectTasksCsvJob(
+      {
+        exportId: taskExport.id,
+      },
+      jobId,
+    );
+
+    await this.prisma.taskExport.update({
+      where: { id: taskExport.id },
+      data: { jobId },
     });
 
     return taskExport;
@@ -499,5 +509,32 @@ export class TaskExportsService {
       filePath,
       fileName: taskExport.fileName,
     };
+  }
+
+  async cancel(userId: string, projectId: string, id: string) {
+    const taskExport = await this.findOneByMember(userId, projectId, id);
+
+    if (
+      taskExport.status === TaskExportStatus.COMPLETED ||
+      taskExport.status === TaskExportStatus.FAILED ||
+      taskExport.status === TaskExportStatus.CANCELLED
+    ) {
+      throw new BadRequestException('Task export cannot be cancelled');
+    }
+
+    if (taskExport.jobId) {
+      await this.taskExportQueueService.removeJob(taskExport.jobId);
+    }
+
+    await this.prisma.taskExport.update({
+      where: {
+        id: taskExport.id,
+      },
+      data: {
+        status: TaskExportStatus.CANCELLED,
+        error: null,
+        completedAt: new Date(),
+      },
+    });
   }
 }

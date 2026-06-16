@@ -16,11 +16,27 @@ export class TaskExportQueueService {
     private readonly taskExportQueue: Queue<ExportProjectTasksCsvJobPayload>,
   ) {}
 
-  async addExportProjectTasksCsvJob(payload: ExportProjectTasksCsvJobPayload) {
+  async addExportProjectTasksCsvJob(
+    payload: ExportProjectTasksCsvJobPayload,
+    jobId: string,
+  ) {
     await this.taskExportQueue.add(
       TASK_EXPORT_JOBS.EXPORT_PROJECT_TASKS_CSV,
       payload,
-      defaultJobOptions,
+      {
+        ...defaultJobOptions,
+        jobId,
+      },
     );
+  }
+
+  async removeJob(jobId: string) {
+    const job = await this.taskExportQueue.getJob(jobId);
+
+    if (!job) {
+      return;
+    }
+
+    await job.remove();
   }
 }

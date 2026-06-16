@@ -8,6 +8,7 @@ import {
   Query,
   Res,
   Body,
+  Patch,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -45,7 +46,11 @@ export class TaskExportsController {
     @Param('projectId') projectId: string,
     @Body() createTaskExportDto: CreateTaskExportDto,
   ) {
-    return this.taskExportsService.create(user.id, projectId, createTaskExportDto);
+    return this.taskExportsService.create(
+      user.id,
+      projectId,
+      createTaskExportDto,
+    );
   }
 
   @ApiCreatedResponse({
@@ -120,5 +125,18 @@ export class TaskExportsController {
     );
 
     return response.download(filePath, fileName);
+  }
+
+  @Patch(':id/cancel')
+  async cancel(
+    @GetCurrentUser() user: CurrentUser,
+    @Param('projectId') projectId: string,
+    @Param('id') id: string,
+  ) {
+    await this.taskExportsService.cancel(user.id, projectId, id);
+
+    return {
+      success: true,
+    };
   }
 }

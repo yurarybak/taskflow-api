@@ -40,4 +40,7 @@ export class TaskExportResponseDto {
     },
   })
   filters?: Record<string, unknown> | null;
+
+  @ApiPropertyOptional({ example: 'task-export-export-id' })
+  jobId?: string | null;
 }
