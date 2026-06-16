@@ -277,6 +277,23 @@ export class TaskExportsService {
     await job?.updateProgress(progress);
   }
 
+  private async ensureExportNotCancelled(exportId: string) {
+    const taskExport = await this.prisma.taskExport.findUnique({
+      where: {
+        id: exportId,
+      },
+      select: {
+        status: true,
+      },
+    });
+
+    if (taskExport?.status === TaskExportStatus.CANCELLED) {
+      return false;
+    }
+
+    return true;
+  }
+
   async findOne(exportId: string) {
     const taskExport = await this.prisma.taskExport.findFirst({
       where: {
@@ -316,6 +333,10 @@ export class TaskExportsService {
       },
     });
     await job?.updateProgress(5);
+
+    if (!(await this.ensureExportNotCancelled(exportId))) {
+      return;
+    }
 
     try {
       const filters = this.parseExportFilters(taskExport.filters);
@@ -357,6 +378,10 @@ export class TaskExportsService {
 
       await this.updateExportProgress(exportId, 30, job);
 
+      if (!(await this.ensureExportNotCancelled(exportId))) {
+        return;
+      }
+
       await mkdir(this.exportDirectory, { recursive: true });
 
       const fileName = `taskflow-tasks-${new Date()
@@ -369,9 +394,17 @@ export class TaskExportsService {
 
       await this.updateExportProgress(exportId, 60, job);
 
+      if (!(await this.ensureExportNotCancelled(exportId))) {
+        return;
+      }
+
       await writeFile(filePath, csv, 'utf8');
 
       await this.updateExportProgress(exportId, 90, job);
+
+      if (!(await this.ensureExportNotCancelled(exportId))) {
+        return;
+      }
 
       const updateTaskExport = await this.prisma.taskExport.update({
         where: {
@@ -559,7 +592,12 @@ export class TaskExportsService {
     }
 
     if (taskExport.jobId) {
-      await this.taskExportQueueService.removeJob(taskExport.jobId);
+      try {
+        await this.taskExportQueueService.removeJob(taskExport.jobId);
+      } catch {
+        // Job can already be active and locked by worker.
+        // In that case cooperative cancellation will stop it.
+      }
     }
 
     await this.prisma.taskExport.update({
