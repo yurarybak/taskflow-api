@@ -10,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 import { TaskExportQueueService } from '../queues/task-export-queue/task-export-queue.service';
 import { FindTaskExportsQueryDto } from './dto/find-task-exports-query.dto';
+import { CreateTaskExportsDto } from './dto/create-task-exports.dto';
 import { createPaginationMeta } from '../common/utils/create-pagination-meta';
 import { TaskExportStatus } from '../../generated/prisma/enums';
 
@@ -288,7 +289,11 @@ export class TaskExportsService {
     }
   }
 
-  async create(userId: string, projectId: string) {
+  async create(
+    userId: string,
+    projectId: string,
+    createTaskExportsDto: CreateTaskExportsDto,
+  ) {
     await this.ensureProjectMember(userId, projectId);
 
     const taskExport = await this.prisma.taskExport.create({

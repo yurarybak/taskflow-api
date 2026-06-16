@@ -7,6 +7,7 @@ import {
   Delete,
   Query,
   Res,
+  Body,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -25,6 +26,7 @@ import { FindTaskExportsQueryDto } from './dto/find-task-exports-query.dto';
 import { TaskExportResponseDto } from './dto/responses/task-export-response-dto';
 import { PaginatedTaskExportsResponseDto } from './dto/responses/paginated-task-exports-response.dto';
 import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
+import { CreateTaskExportsDto } from './dto/create-task-exports.dto';
 
 import type { CurrentUser } from '../auth/types/current-user.type';
 
@@ -41,8 +43,9 @@ export class TaskExportsController {
   create(
     @GetCurrentUser() user: CurrentUser,
     @Param('projectId') projectId: string,
+    @Body() createTaskExportsDto: CreateTaskExportsDto,
   ) {
-    return this.taskExportsService.create(user.id, projectId);
+    return this.taskExportsService.create(user.id, projectId, createTaskExportsDto);
   }
 
   @ApiCreatedResponse({
