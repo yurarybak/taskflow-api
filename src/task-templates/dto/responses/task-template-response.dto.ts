@@ -38,6 +38,12 @@ export class TaskTemplateResponseDto {
   @ApiProperty({ type: TaskTemplateLabelResponseDto, isArray: true })
   labels!: TaskTemplateLabelResponseDto[];
 
+  @ApiProperty({ example: 0 })
+  usageCount!: number;
+
+  @ApiPropertyOptional({ example: '2026-06-17T12:00:00.000Z' })
+  lastUsedAt?: Date | null;
+
   @ApiProperty({ example: '2026-06-17T10:00:00.000Z' })
   createdAt!: Date;
 

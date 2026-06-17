@@ -907,6 +907,18 @@ export class TasksService {
         tx,
       );
 
+      await tx.taskTemplate.update({
+        where: {
+          id: taskTemplate.id,
+        },
+        data: {
+          usageCount: {
+            increment: 1,
+          },
+          lastUsedAt: new Date(),
+        },
+      });
+
       return task;
     });
   }
