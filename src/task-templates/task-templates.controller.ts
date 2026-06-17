@@ -53,7 +53,7 @@ export class TaskTemplatesController {
   @Post()
   create(
     @GetCurrentUser() user: CurrentUser,
-    @Param(':workspaceId') workspaceId: string,
+    @Param('workspaceId') workspaceId: string,
     @Body() createTaskTemplateDto: CreateTaskTemplateDto,
   ) {
     return this.taskTemplatesService.create(
@@ -69,7 +69,7 @@ export class TaskTemplatesController {
   @Get()
   findAll(
     @GetCurrentUser() user: CurrentUser,
-    @Param(':workspaceId') workspaceId: string,
+    @Param('workspaceId') workspaceId: string,
     @Query() query: FindTaskTemplatesQueryDto,
   ) {
     return this.taskTemplatesService.findAll(user.id, workspaceId, query);
@@ -81,8 +81,8 @@ export class TaskTemplatesController {
   @Get(':id')
   findOne(
     @GetCurrentUser() user: CurrentUser,
-    @Param(':workspaceId') workspaceId: string,
-    @Param(':id') id: string,
+    @Param('workspaceId') workspaceId: string,
+    @Param('id') id: string,
   ) {
     return this.taskTemplatesService.findOne(user.id, workspaceId, id);
   }
@@ -96,8 +96,8 @@ export class TaskTemplatesController {
   @Patch(':id')
   update(
     @GetCurrentUser() user: CurrentUser,
-    @Param(':workspaceId') workspaceId: string,
-    @Param(':id') id: string,
+    @Param('workspaceId') workspaceId: string,
+    @Param('id') id: string,
     @Body() updateTaskTemplateDto: UpdateTaskTemplateDto,
   ) {
     return this.taskTemplatesService.update(
@@ -114,11 +114,11 @@ export class TaskTemplatesController {
     description: 'Only owner or admin can manage templates',
   })
   @ApiNotFoundResponse({ description: 'Task template not found' })
-  @Delete()
+  @Delete(':id')
   async remove(
     @GetCurrentUser() user: CurrentUser,
-    @Param(':workspaceId') workspaceId: string,
-    @Param(':id') id: string,
+    @Param('workspaceId') workspaceId: string,
+    @Param('id') id: string,
   ) {
     await this.taskTemplatesService.remove(user.id, workspaceId, id);
 

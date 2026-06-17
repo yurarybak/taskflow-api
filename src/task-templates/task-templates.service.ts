@@ -15,7 +15,7 @@ export class TaskTemplatesService {
         id: workspaceId,
         members: {
           some: {
-            id: userId,
+            userId,
           },
         },
       },
