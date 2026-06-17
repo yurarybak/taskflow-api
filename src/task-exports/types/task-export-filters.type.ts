@@ -5,6 +5,7 @@ import {
 } from '../../../generated/prisma/enums';
 
 export type TaskExportFilters = {
+  taskIds?: string[];
   statuses?: TaskStatus[];
   priorities?: TaskPriority[];
   types?: TaskType[];

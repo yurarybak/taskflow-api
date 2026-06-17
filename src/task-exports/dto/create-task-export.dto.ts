@@ -76,4 +76,12 @@ export class CreateTaskExportDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @ApiPropertyOptional({
+    example: ['task-id-1', 'task-id-2'],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  taskIds?: string[];
 }

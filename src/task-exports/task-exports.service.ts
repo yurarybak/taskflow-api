@@ -20,6 +20,7 @@ import { TaskExportStatus } from '../../generated/prisma/enums';
 import type { Prisma, TaskExport } from '../../generated/prisma/client';
 import type { PaginatedResponse } from '../common/types/paginated-response.type';
 import type { TaskExportFilters } from './types/task-export-filters.type';
+import { filter } from 'rxjs';
 
 @Injectable()
 export class TaskExportsService {
@@ -196,6 +197,11 @@ export class TaskExportsService {
   ): Prisma.TaskWhereInput {
     return {
       projectId,
+      ...(!filters.taskIds?.length && {
+        id: {
+          in: filters.taskIds,
+        },
+      }),
       ...(!filters.includeArchived && {
         archivedAt: null,
       }),
@@ -447,6 +453,7 @@ export class TaskExportsService {
     await this.ensureProjectMember(userId, projectId);
 
     const filters = {
+      taskIds: createTaskExportDto.taskIds,
       statuses: createTaskExportDto.statuses,
       priorities: createTaskExportDto.priorities,
       types: createTaskExportDto.types,
