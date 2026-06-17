@@ -197,7 +197,7 @@ export class TaskExportsService {
   ): Prisma.TaskWhereInput {
     return {
       projectId,
-      ...(!filters.taskIds?.length && {
+      ...(filters.taskIds?.length && {
         id: {
           in: filters.taskIds,
         },
