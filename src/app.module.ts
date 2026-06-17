@@ -28,6 +28,7 @@ import { TaskRemindersModule } from './task-reminders/task-reminders.module';
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 import { TaskExportsModule } from './task-exports/task-exports.module';
 import { TaskExportQueueModule } from './queues/task-export-queue/task-export-queue.module';
+import { TaskTemplatesModule } from './task-templates/task-templates.module';
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { TaskExportQueueModule } from './queues/task-export-queue/task-export-qu
     TaskRemindersModule,
     TaskExportsModule,
     TaskExportQueueModule,
+    TaskTemplatesModule,
   ],
 })
 export class AppModule implements NestModule {
