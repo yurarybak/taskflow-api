@@ -417,6 +417,8 @@ model TaskTemplate {
   type        TaskType     @default(TASK)
   priority    TaskPriority @default(MEDIUM)
   workspaceId String
+  usageCount  Int          @default(0)
+  lastUsedAt  DateTime?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
