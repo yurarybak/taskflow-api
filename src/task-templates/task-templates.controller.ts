@@ -30,14 +30,6 @@ import { SuccessResponseDto } from '../common/dto/responses/success-response.dto
 
 import type { CurrentUser } from '../auth/types/current-user.type';
 
-// POST   /workspaces/:workspaceId/task-templates
-// GET    /workspaces/:workspaceId/task-templates
-// GET    /workspaces/:workspaceId/task-templates/:id
-// PATCH  /workspaces/:workspaceId/task-templates/:id
-// DELETE /workspaces/:workspaceId/task-templates/:id
-
-// POST /projects/:projectId/tasks/from-template
-
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('workspaces/:workspaceId/task-templates')
