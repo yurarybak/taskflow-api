@@ -11,8 +11,8 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { FindTasksQueryDto } from './dto/find-tasks-query.dto';
 import { SetTaskMilestoneDto } from './dto/set-task-milestone.dto';
+import { CreateTaskFromTemplateDto } from './dto/create-task-from-template.dto';
 import { createPaginationMeta } from '../common/utils/create-pagination-meta';
-import { PrismaTransactionClient } from '../prisma/types/prisma-transaction-client.type';
 import {
   WorkspaceRole,
   TaskActivityType,
@@ -829,6 +829,85 @@ export class TasksService {
       );
 
       return updatedTask;
+    });
+  }
+
+  async createTaskFromTemplate(
+    userId: string,
+    projectId: string,
+    createTaskFromTemplateDto: CreateTaskFromTemplateDto,
+  ) {
+    const project = await this.ensureProjectMember(projectId, userId);
+
+    const taskTemplate = await this.prisma.taskTemplate.findFirst({
+      where: {
+        id: createTaskFromTemplateDto.templateId,
+        workspaceId: project.workspaceId,
+      },
+      include: {
+        labels: true,
+      },
+    });
+
+    if (!taskTemplate) {
+      throw new NotFoundException('Template was not found');
+    }
+
+    if (createTaskFromTemplateDto.assigneeId) {
+      await this.ensureProjectMemberByUserId(
+        projectId,
+        createTaskFromTemplateDto.assigneeId,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const task = await tx.task.create({
+        data: {
+          title: createTaskFromTemplateDto.title ?? taskTemplate.title,
+          description: taskTemplate.description,
+          priority: taskTemplate.priority,
+          type: taskTemplate.type,
+          projectId: projectId,
+          creatorId: userId,
+          assigneeId: createTaskFromTemplateDto.assigneeId,
+          dueDate: createTaskFromTemplateDto.dueDate,
+          labels: {
+            connect: taskTemplate.labels.map((label) => ({
+              id: label.id,
+            })),
+          },
+        },
+        include: {
+          assignee: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+          creator: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+          labels: true,
+        },
+      });
+
+      await this.taskActivityService.create(
+        {
+          taskId: task.id,
+          actorId: userId,
+          type: TaskActivityType.TASK_CREATED,
+        },
+        tx,
+      );
+
+      return task;
     });
   }
 }

@@ -32,6 +32,7 @@ import { TaskResponseDto } from './dto/responses/task-response.dto';
 import { AssignTaskDto } from './dto/assign-task.dto';
 import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
 import { SetTaskMilestoneDto } from './dto/set-task-milestone.dto';
+import { CreateTaskFromTemplateDto } from './dto/create-task-from-template.dto';
 
 @ApiBearerAuth()
 @Controller('projects/:projectId/tasks')
@@ -291,7 +292,7 @@ export class TasksController {
   @ApiNotFoundResponse({
     description: 'Task or milestone not found',
   })
-  @Patch('/:id/milestone')
+  @Patch(':id/milestone')
   setMilestone(
     @GetCurrentUser() user: CurrentUser,
     @Param('projectId') projectId: string,
@@ -303,6 +304,22 @@ export class TasksController {
       projectId,
       id,
       setTaskMilestoneDto,
+    );
+  }
+
+  @ApiCreatedResponse({ type: TaskResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiNotFoundResponse({ description: 'Project or task template not found' })
+  @Post('from-template')
+  createFromTemplate(
+    @GetCurrentUser() user: CurrentUser,
+    @Param('projectId') projectId: string,
+    @Body() createTaskFromTemplateDto: CreateTaskFromTemplateDto,
+  ) {
+    return this.tasksService.createTaskFromTemplate(
+      user.id,
+      projectId,
+      createTaskFromTemplateDto,
     );
   }
 }
