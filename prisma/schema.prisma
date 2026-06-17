@@ -49,10 +49,11 @@ model Workspace {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  owned    User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  projects Project[]
-  members  WorkspaceMember[]
-  labels   Label[]
+  owned         User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  projects      Project[]
+  members       WorkspaceMember[]
+  labels        Label[]
+  taskTemplates TaskTemplate[]
 
   @@map("workspaces")
 }
@@ -189,8 +190,9 @@ model Label {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  tasks     Task[]
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tasks         Task[]
+  taskTemplates TaskTemplate[]
 
   @@unique([workspaceId, name])
   @@map("labels")
@@ -405,4 +407,22 @@ model TaskExport {
 
   @@index([projectId, userId, createdAt])
   @@map("task_exports")
+}
+
+model TaskTemplate {
+  id          String       @id @default(uuid())
+  name        String
+  title       String
+  description String?
+  type        TaskType     @default(TASK)
+  priority    TaskPriority @default(MEDIUM)
+  workspaceId String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  labels    Label[]
+
+  @@unique([workspaceId, name])
+  @@map("task_templates")
 }
