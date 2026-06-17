@@ -1,6 +1,6 @@
 # TaskFlow API
 
-TaskFlow API is a learning-focused task management backend built with NestJS, TypeScript, PostgreSQL, Prisma, Docker, JWT authentication, and BullMQ. The project is designed as a practical playground for building real backend features step by step: authentication, CRUD operations, permissions, file uploads, task collaboration, activity tracking, background jobs, and time tracking.
+TaskFlow API is a learning-focused task management backend built with NestJS, TypeScript, PostgreSQL, Prisma, Docker, JWT authentication, and BullMQ. The project is designed as a practical playground for building real backend features step by step: authentication, CRUD operations, permissions, file uploads, task collaboration, activity tracking, background jobs, exports, and time tracking.
 
 ## Tech Stack
 
@@ -70,6 +70,17 @@ TaskFlow API is a learning-focused task management backend built with NestJS, Ty
 - Worklogs for time tracking
 - Activity log for task changes
 
+### Task Exports
+
+- Export project tasks to CSV through BullMQ
+- Export all tasks, filtered tasks, or selected task IDs
+- Store export status in the database
+- Track export progress from `0` to `100`
+- Cancel pending or active exports
+- Cooperative cancellation for already running jobs
+- Retry failed or cancelled exports
+- Download completed CSV files
+
 ### Notifications
 
 - In-app notifications
@@ -92,14 +103,17 @@ TaskFlow API is a learning-focused task management backend built with NestJS, Ty
 - Redis-backed BullMQ queues
 - `notifications` queue for in-app notifications and task reminders
 - `email` queue for password reset emails
+- `task-export` queue for CSV exports
 - Retry attempts with exponential backoff
 - Queue lifecycle logs in processors
+- Configurable worker concurrency for export jobs
 - Bull Board dashboard for local queue inspection
 
 ### Files
 
 - Local avatar uploads
 - Local task attachment uploads
+- Generated CSV export files
 - File size and file type validation
 
 ## Project Structure
@@ -120,6 +134,7 @@ src/
   saved-task-filters/   Saved filters for task lists
   worklogs/             Task time tracking
   task-reminders/       Scheduled task reminders
+  task-exports/         CSV task exports
   notifications/        In-app notifications
   queues/               BullMQ queue modules, processors, and job config
   task-activity/        Task activity logs
@@ -132,6 +147,7 @@ prisma/
 uploads/
   avatars/              Local avatar files
   attachments/          Local task attachment files
+  exports/tasks/        Generated task CSV exports
 ```
 
 ## Getting Started
@@ -317,6 +333,7 @@ It can be used to inspect BullMQ jobs:
 - failed
 - retried jobs
 - job payloads and errors
+- job progress
 
 The dashboard is currently intended for local development only and should be protected or disabled before production deployment.
 
@@ -327,6 +344,7 @@ The dashboard is currently intended for local development only and should be pro
 - `/workspaces` - workspaces and workspace members
 - `/workspaces/:workspaceId/projects` - workspace projects
 - `/projects/:projectId/tasks` - tasks
+- `/projects/:projectId/task-exports` - CSV task exports
 - `/projects/:projectId/labels` - labels
 - `/projects/:projectId/milestones` - milestones
 - `/projects/:projectId/saved-filters` - saved task filters
@@ -339,9 +357,53 @@ The dashboard is currently intended for local development only and should be pro
 - `/projects/:projectId/tasks/:taskId/activity` - task activity log
 - `/notifications` - in-app notifications
 
+## Task Export Flow
+
+Task exports are asynchronous. The API creates an export record and queues a BullMQ job; the worker generates the CSV in the background.
+
+```text
+POST /projects/:projectId/task-exports
+        -> TaskExportsService.create()
+        -> task_exports row with PENDING status
+        -> TaskExportQueueService.addExportProjectTasksCsvJob(...)
+        -> Redis / BullMQ task-export queue
+        -> TaskExportQueueProcessor
+        -> TaskExportsService.generateProjectTasksCsv(...)
+        -> CSV file in uploads/exports/tasks
+        -> task_exports status COMPLETED or FAILED
+```
+
+Supported export inputs include:
+
+```json
+{
+  "taskIds": ["task-id-1", "task-id-2"],
+  "statuses": ["TODO", "IN_PROGRESS"],
+  "priorities": ["HIGH"],
+  "types": ["BUG", "FEATURE"],
+  "assigneeIds": ["user-id"],
+  "labelIds": ["label-id"],
+  "milestoneIds": ["milestone-id"],
+  "withoutAssignee": false,
+  "withoutMilestone": false,
+  "includeArchived": false,
+  "search": "auth"
+}
+```
+
+Export lifecycle:
+
+```text
+PENDING -> PROCESSING -> COMPLETED
+PENDING -> PROCESSING -> FAILED
+PENDING -> CANCELLED
+PROCESSING -> CANCELLED
+FAILED/CANCELLED -> retry -> PENDING
+```
+
 ## Background Job Flow
 
-TaskFlow currently uses BullMQ for two main flows.
+TaskFlow currently uses BullMQ for three main flows.
 
 ### Notification jobs
 
@@ -363,6 +425,16 @@ Auth forgot-password
         -> SendGrid
 ```
 
+### Task export jobs
+
+```text
+Task export request
+        -> TaskExportQueueService
+        -> Redis / BullMQ task-export queue
+        -> TaskExportQueueProcessor
+        -> CSV file + task_exports status update
+```
+
 ## Development Notes
 
 - Feature-based NestJS modules
@@ -374,6 +446,7 @@ Auth forgot-password
 - Transactions for multi-step database operations
 - BullMQ queues for background jobs
 - Delayed jobs for task reminders
+- CSV exports with progress, cancellation, retry, and worker concurrency
 - Swagger decorators for API documentation
 - Local file storage abstraction that can later be replaced with S3 or another storage provider
 
