@@ -139,7 +139,7 @@ export class TaskTemplatesService {
       take: limit,
       skip,
       orderBy: {
-        [`${query.sortOrder}`]: query.sortOrder,
+        [`${query.sortBy}`]: query.sortOrder,
       },
       include: {
         labels: true,
