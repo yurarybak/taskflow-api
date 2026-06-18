@@ -29,6 +29,7 @@ import { RequestLoggerMiddleware } from './common/middleware/request-logger.midd
 import { TaskExportsModule } from './task-exports/task-exports.module';
 import { TaskExportQueueModule } from './queues/task-export-queue/task-export-queue.module';
 import { TaskTemplatesModule } from './task-templates/task-templates.module';
+import { RecurringTasksModule } from './recurring-tasks/recurring-tasks.module';
 
 @Module({
   imports: [
@@ -69,6 +70,7 @@ import { TaskTemplatesModule } from './task-templates/task-templates.module';
     TaskExportsModule,
     TaskExportQueueModule,
     TaskTemplatesModule,
+    RecurringTasksModule,
   ],
 })
 export class AppModule implements NestModule {
