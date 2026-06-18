@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateTaskTemplateDto } from './dto/create-task-template.dto';
 import { UpdateTaskTemplateDto } from './dto/update-task-template.dto';
 import { FindTaskTemplatesQueryDto } from './dto/find-task-templates-query.dto';
+import { Prisma } from '../../generated/prisma/client';
 
 @Injectable()
 export class TaskTemplatesService {
@@ -112,11 +113,33 @@ export class TaskTemplatesService {
     return this.prisma.taskTemplate.findMany({
       where: {
         workspaceId,
+        ...(query.search && {
+          OR: [
+            {
+              name: {
+                contains: query.search,
+                mode: Prisma.QueryMode.insensitive,
+              },
+            },
+            {
+              title: {
+                contains: query.search,
+                mode: Prisma.QueryMode.insensitive,
+              },
+            },
+            {
+              description: {
+                contains: query.search,
+                mode: Prisma.QueryMode.insensitive,
+              },
+            },
+          ],
+        }),
       },
       take: limit,
       skip,
       orderBy: {
-        updatedAt: 'desc',
+        [`${query.sortOrder}`]: query.sortOrder,
       },
       include: {
         labels: true,
