@@ -1,6 +1,6 @@
 # TaskFlow API
 
-TaskFlow API is a learning-focused task management backend built with NestJS, TypeScript, PostgreSQL, Prisma, Docker, JWT authentication, and BullMQ. The project is designed as a practical playground for building real backend features step by step: authentication, CRUD operations, permissions, file uploads, task collaboration, activity tracking, background jobs, exports, and time tracking.
+TaskFlow API is a learning-focused task management backend built with NestJS, TypeScript, PostgreSQL, Prisma, Docker, JWT authentication, and BullMQ. The project is designed as a practical playground for building real backend features step by step: authentication, CRUD operations, permissions, file uploads, task collaboration, activity tracking, background jobs, exports, templates, and time tracking.
 
 ## Tech Stack
 
@@ -66,9 +66,20 @@ TaskFlow API is a learning-focused task management backend built with NestJS, Ty
 - Archive / unarchive
 - Flag / unflag
 - Clone task
+- Create task from template
 - Original estimate, remaining estimate, and time spent
 - Worklogs for time tracking
 - Activity log for task changes
+
+### Task Templates
+
+- Workspace-level task template CRUD
+- Template labels, type, priority, title, and description
+- Search, sort, and pagination for template lists
+- Duplicate templates with unique copy names
+- Bulk delete templates
+- Usage tracking with `usageCount` and `lastUsedAt`
+- Create project tasks from workspace templates
 
 ### Task Exports
 
@@ -125,6 +136,7 @@ src/
   workspaces/           Workspace CRUD and members
   projects/             Project CRUD
   tasks/                Task CRUD and task-specific actions
+  task-templates/       Workspace task templates
   comments/             Task comments and mentions
   attachments/          Task attachments
   labels/               Workspace labels and task labels
@@ -343,7 +355,8 @@ The dashboard is currently intended for local development only and should be pro
 - `/users` - user profile and avatars
 - `/workspaces` - workspaces and workspace members
 - `/workspaces/:workspaceId/projects` - workspace projects
-- `/projects/:projectId/tasks` - tasks
+- `/workspaces/:workspaceId/task-templates` - workspace task templates
+- `/projects/:projectId/tasks` - tasks and create-from-template flow
 - `/projects/:projectId/task-exports` - CSV task exports
 - `/projects/:projectId/labels` - labels
 - `/projects/:projectId/milestones` - milestones
@@ -356,6 +369,29 @@ The dashboard is currently intended for local development only and should be pro
 - `/projects/:projectId/tasks/:taskId/worklogs` - task worklogs
 - `/projects/:projectId/tasks/:taskId/activity` - task activity log
 - `/notifications` - in-app notifications
+
+## Task Template Flow
+
+Task templates are workspace-level presets used to create tasks faster and more consistently.
+
+```text
+POST /workspaces/:workspaceId/task-templates
+        -> create reusable template with labels/type/priority/description
+
+POST /projects/:projectId/tasks/from-template
+        -> load template from the same workspace
+        -> create task with template fields and labels
+        -> create TASK_CREATED activity
+        -> increment template usageCount and lastUsedAt
+```
+
+Template management supports:
+
+- list with search, sort, and pagination
+- duplicate template
+- bulk delete templates
+- create task from template
+- usage tracking
 
 ## Task Export Flow
 
@@ -447,6 +483,7 @@ Task export request
 - BullMQ queues for background jobs
 - Delayed jobs for task reminders
 - CSV exports with progress, cancellation, retry, and worker concurrency
+- Workspace task templates with duplication, bulk actions, and usage tracking
 - Swagger decorators for API documentation
 - Local file storage abstraction that can later be replaced with S3 or another storage provider
 
