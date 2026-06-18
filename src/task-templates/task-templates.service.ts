@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateTaskTemplateDto } from './dto/create-task-template.dto';
 import { UpdateTaskTemplateDto } from './dto/update-task-template.dto';
 import { FindTaskTemplatesQueryDto } from './dto/find-task-templates-query.dto';
+import { BulkDeleteDto } from './dto/bulk-delete.dto';
 import { Prisma } from '../../generated/prisma/client';
 
 @Injectable()
@@ -227,6 +228,22 @@ export class TaskTemplatesService {
       },
       include: {
         labels: true,
+      },
+    });
+  }
+
+  async bulkDelete(
+    userId: string,
+    workspaceId: string,
+    bulkDeleteDto: BulkDeleteDto,
+  ) {
+    await this.ensureWorkspaceMember(userId, workspaceId);
+
+    await this.prisma.taskTemplate.deleteMany({
+      where: {
+        id: {
+          in: bulkDeleteDto.ids,
+        },
       },
     });
   }

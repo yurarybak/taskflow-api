@@ -26,6 +26,7 @@ import { FindTaskTemplatesQueryDto } from './dto/find-task-templates-query.dto';
 import { TaskTemplateResponseDto } from './dto/responses/task-template-response.dto';
 import { PaginatedTasksResponseDto } from './dto/responses/paginated-task-templates-response.dto';
 import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
+import { BulkDeleteDto } from './dto/bulk-delete.dto';
 
 import type { CurrentUser } from '../auth/types/current-user.type';
 
@@ -91,6 +92,28 @@ export class TaskTemplatesController {
       id,
       updateTaskTemplateDto,
     );
+  }
+
+  @ApiOkResponse({ type: SuccessResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiNotFoundResponse({
+    description: 'One or more task templates were not found',
+  })
+  @Post('bulk-delete')
+  async bulkDelete(
+    @GetCurrentUser() user: CurrentUser,
+    @Param('workspaceId') workspaceId: string,
+    @Body() bulkDeleteDto: BulkDeleteDto,
+  ) {
+    await this.taskTemplatesService.bulkDelete(
+      user.id,
+      workspaceId,
+      bulkDeleteDto,
+    );
+
+    return {
+      success: true,
+    };
   }
 
   @ApiOkResponse({ type: SuccessResponseDto })
