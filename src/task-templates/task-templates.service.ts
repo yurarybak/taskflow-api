@@ -203,4 +203,31 @@ export class TaskTemplatesService {
       },
     });
   }
+
+  async duplicate(userId: string, workspaceId: string, id: string) {
+    await this.ensureWorkspaceMember(userId, workspaceId);
+
+    const template = await this.findOneById(id);
+
+    const name = `${template.name} copy`;
+
+    return this.prisma.taskTemplate.create({
+      data: {
+        name,
+        title: template.title,
+        description: template.description,
+        type: template.type,
+        priority: template.priority,
+        workspaceId,
+        labels: {
+          connect: template.labels.map((label) => ({
+            id: label.id,
+          })),
+        },
+      },
+      include: {
+        labels: true,
+      },
+    });
+  }
 }

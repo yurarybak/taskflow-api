@@ -12,7 +12,6 @@ import {
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
-  ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiUnauthorizedResponse,
@@ -38,9 +37,6 @@ export class TaskTemplatesController {
 
   @ApiCreatedResponse({ type: TaskTemplateResponseDto })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-  @ApiForbiddenResponse({
-    description: 'Only owner or admin can manage templates',
-  })
   @ApiNotFoundResponse({ description: 'Workspace or label not found' })
   @Post()
   create(
@@ -81,9 +77,6 @@ export class TaskTemplatesController {
 
   @ApiOkResponse({ type: TaskTemplateResponseDto })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-  @ApiForbiddenResponse({
-    description: 'Only owner or admin can manage templates',
-  })
   @ApiNotFoundResponse({ description: 'Task template or label not found' })
   @Patch(':id')
   update(
@@ -102,9 +95,6 @@ export class TaskTemplatesController {
 
   @ApiOkResponse({ type: SuccessResponseDto })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-  @ApiForbiddenResponse({
-    description: 'Only owner or admin can manage templates',
-  })
   @ApiNotFoundResponse({ description: 'Task template not found' })
   @Delete(':id')
   async remove(
@@ -117,5 +107,17 @@ export class TaskTemplatesController {
     return {
       success: true,
     };
+  }
+
+  @ApiCreatedResponse({ type: TaskTemplateResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiNotFoundResponse({ description: 'Task template not found' })
+  @Post(':id/duplicate')
+  duplicate(
+    @GetCurrentUser() user: CurrentUser,
+    @Param('workspaceId') workspaceId: string,
+    @Param('id') id: string,
+  ) {
+    return this.taskTemplatesService.duplicate(user.id, workspaceId, id);
   }
 }
