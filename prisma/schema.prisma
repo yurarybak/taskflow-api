@@ -23,20 +23,21 @@ model User {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  ownedWorkspaces      Workspace[]
-  workspaceMemberships WorkspaceMember[]
-  createdTasks         Task[]
-  assignedTasks        Task[]            @relation("TaskAssignee")
-  refreshTokens        RefreshToken[]
-  comments             TaskComment[]
-  taskActivityLogs     TaskActivityLog[]
-  uploadedAttachments  TaskAttachment[]
-  watchedTasks         TaskWatcher[]
-  savedTaskFilters     SavedTaskFilter[]
-  worklogs             Worklog[]
-  notifications        Notification[]
-  taskReminders        TaskReminder[]
-  taskExports          TaskExport[]
+  ownedWorkspaces       Workspace[]
+  workspaceMemberships  WorkspaceMember[]
+  createdTasks          Task[]
+  assignedTasks         Task[]            @relation("TaskAssignee")
+  refreshTokens         RefreshToken[]
+  comments              TaskComment[]
+  taskActivityLogs      TaskActivityLog[]
+  uploadedAttachments   TaskAttachment[]
+  watchedTasks          TaskWatcher[]
+  savedTaskFilters      SavedTaskFilter[]
+  worklogs              Worklog[]
+  notifications         Notification[]
+  taskReminders         TaskReminder[]
+  taskExports           TaskExport[]
+  createdRecurringTasks RecurringTask[]
 
   @@map("users")
 }
@@ -71,7 +72,8 @@ model Project {
   savedTaskFilters SavedTaskFilter[]
   taskExports      TaskExport[]
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  recurringTasks RecurringTask[]
 
   @@map("projects")
 }
@@ -422,9 +424,39 @@ model TaskTemplate {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  labels    Label[]
+  workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  labels         Label[]
+  recurringTasks RecurringTask[]
 
   @@unique([workspaceId, name])
   @@map("task_templates")
+}
+
+enum RecurringTaskStatus {
+  ACTIVE
+  PAUSED
+}
+
+model RecurringTask {
+  id           String              @id @default(uuid())
+  name         String
+  intervalDays Int
+  startAt      DateTime
+  nextRunAt    DateTime
+  lastRunAt    DateTime?
+  runCount     Int                 @default(0)
+  status       RecurringTaskStatus @default(ACTIVE)
+  templateId   String
+  projectId    String
+  creatorId    String
+  jobId        String?             @unique
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  template TaskTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  project  Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  creator  User         @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, status, nextRunAt])
+  @@map("recurring_tasks")
 }
