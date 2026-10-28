@@ -7,7 +7,9 @@ describe('RecurringTasksController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [RecurringTasksController],
-    }).compile();
+    })
+      .useMocker(() => ({}))
+      .compile();
 
     controller = module.get<RecurringTasksController>(RecurringTasksController);
   });

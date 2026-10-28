@@ -7,7 +7,9 @@ describe('TaskExportQueueService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [TaskExportQueueService],
-    }).compile();
+    })
+      .useMocker(() => ({}))
+      .compile();
 
     service = module.get<TaskExportQueueService>(TaskExportQueueService);
   });

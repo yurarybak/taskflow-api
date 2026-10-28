@@ -14,8 +14,17 @@ import { FindCommentsQueryDto } from './dto/find-comments-query.dto';
 import { createPaginationMeta } from '../common/utils/create-pagination-meta';
 import { extractMentionUserIds } from '../common/utils/extract-mention-user-ids';
 
-import type { Prisma, TaskComment } from '../../generated/prisma/client';
+import type {
+  Prisma,
+  Project,
+  Task,
+  TaskComment,
+  TaskWatcher,
+  Workspace,
+  WorkspaceMember,
+} from '../../generated/prisma/client';
 import type { PaginatedResponse } from '../common/types/paginated-response.type';
+import type { TaskCommentWithAuthor } from './types/task-comment-with-author.type';
 
 @Injectable()
 export class CommentsService {
@@ -25,7 +34,17 @@ export class CommentsService {
     private readonly notificationsQueueService: NotificationsQueueService,
   ) {}
 
-  private async ensureTaskMember(taskId: string, userId: string) {
+  private async ensureTaskMember(
+    taskId: string,
+    userId: string,
+  ): Promise<
+    Task & {
+      watchers: TaskWatcher[];
+      project: Project & {
+        workspace: Workspace & { members: Pick<WorkspaceMember, 'userId'>[] };
+      };
+    }
+  > {
     const task = await this.prisma.task.findFirst({
       where: {
         id: taskId,
@@ -64,7 +83,10 @@ export class CommentsService {
     return task;
   }
 
-  private async ensureCommentAuthor(commentId: string, userId: string) {
+  private async ensureCommentAuthor(
+    commentId: string,
+    userId: string,
+  ): Promise<TaskComment> {
     const comment = await this.prisma.taskComment.findFirst({
       where: {
         id: commentId,
@@ -79,7 +101,19 @@ export class CommentsService {
     return comment;
   }
 
-  private async getCommentWithMembership(commentId: string, userId: string) {
+  private async getCommentWithMembership(
+    commentId: string,
+    userId: string,
+  ): Promise<{
+    comment: TaskComment & {
+      task: Task & {
+        project: Project & {
+          workspace: Workspace & { members: WorkspaceMember[] };
+        };
+      };
+    };
+    membership: WorkspaceMember;
+  }> {
     const comment = await this.prisma.taskComment.findFirst({
       where: {
         id: commentId,
@@ -132,7 +166,9 @@ export class CommentsService {
     };
   }
 
-  private getCommentResponse(id: string) {
+  private getCommentResponse(
+    id: string,
+  ): Promise<TaskCommentWithAuthor | null> {
     return this.prisma.taskComment.findUnique({
       where: {
         id,
@@ -160,7 +196,7 @@ export class CommentsService {
       title: string;
       projectId: string;
     },
-  ) {
+  ): Promise<void> {
     const recipientIds = watcherIds.filter(
       (watcherId) => watcherId !== actorId,
     );
@@ -197,7 +233,7 @@ export class CommentsService {
       };
     },
     excludedUserIds: string[],
-  ) {
+  ): Promise<void> {
     const mentionedUserIds = extractMentionUserIds(content);
 
     const workspaceMemberIds = new Set(
@@ -231,7 +267,7 @@ export class CommentsService {
     userId: string,
     taskId: string,
     createCommentDto: CreateCommentDto,
-  ) {
+  ): Promise<TaskCommentWithAuthor> {
     const task = await this.ensureTaskMember(taskId, userId);
 
     if (!task) {
@@ -294,7 +330,7 @@ export class CommentsService {
     userId: string,
     commentId: string,
     updateCommentDto: UpdateCommentDto,
-  ) {
+  ): Promise<TaskCommentWithAuthor> {
     await this.ensureCommentAuthor(commentId, userId);
 
     return this.prisma.taskComment.update({
@@ -320,7 +356,10 @@ export class CommentsService {
     });
   }
 
-  async getComment(commentId: string, userId: string) {
+  async getComment(
+    commentId: string,
+    userId: string,
+  ): Promise<TaskCommentWithAuthor | null> {
     await this.getCommentWithMembership(commentId, userId);
 
     const comment = await this.getCommentResponse(commentId);
@@ -328,7 +367,7 @@ export class CommentsService {
     return comment;
   }
 
-  async delete(userId: string, commentId: string) {
+  async delete(userId: string, commentId: string): Promise<void> {
     const { comment, membership } = await this.getCommentWithMembership(
       commentId,
       userId,

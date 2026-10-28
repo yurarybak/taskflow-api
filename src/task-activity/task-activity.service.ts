@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PrismaTransactionClient } from '../prisma/types/prisma-transaction-client.type';
 import { FindTaskActivitiesQueryDto } from './dto/find-task-activities-query.dto';
@@ -7,34 +7,19 @@ import { createPaginationMeta } from '../common/utils/create-pagination-meta';
 import type { CreateTaskActivityInput } from './types/create-task-activity.type';
 import type { TaskActivityLog } from '../../generated/prisma/client';
 import type { PaginatedResponse } from '../common/types/paginated-response.type';
+import { WorkspaceAccessService } from '../workspace-access/workspace-access.service';
 
 @Injectable()
 export class TaskActivityService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly workspaceAccessService: WorkspaceAccessService,
+  ) {}
 
-  private async ensureTaskMember(taskId: string, userId: string) {
-    const task = await this.prisma.task.findFirst({
-      where: {
-        id: taskId,
-        project: {
-          workspace: {
-            members: {
-              some: {
-                userId,
-              },
-            },
-          },
-        },
-      },
-    });
-    if (!task) {
-      throw new NotFoundException('Task not found');
-    }
-
-    return task;
-  }
-
-  create(input: CreateTaskActivityInput, tx?: PrismaTransactionClient) {
+  create(
+    input: CreateTaskActivityInput,
+    tx?: PrismaTransactionClient,
+  ): Promise<TaskActivityLog> {
     const prisma = tx ?? this.prisma;
 
     return prisma.taskActivityLog.create({
@@ -47,7 +32,7 @@ export class TaskActivityService {
     userId: string,
     query: FindTaskActivitiesQueryDto,
   ): Promise<PaginatedResponse<TaskActivityLog>> {
-    await this.ensureTaskMember(taskId, userId);
+    await this.workspaceAccessService.ensureTaskMember(taskId, userId);
 
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;

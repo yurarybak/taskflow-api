@@ -6,7 +6,7 @@ import {
 
 import { PrismaService } from '../prisma/prisma.service';
 import { TaskActivityService } from '../task-activity/task-activity.service';
-import { NotificationsQueueService } from '../queues/notifications-queue/notifications-queue.service';
+import { TaskNotificationsService } from './task-notifications.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { FindTasksQueryDto } from './dto/find-tasks-query.dto';
@@ -17,63 +17,52 @@ import {
   WorkspaceRole,
   TaskActivityType,
   TaskStatus,
-  NotificationType,
 } from '../../generated/prisma/enums';
 
-import type { Prisma, Task } from '../../generated/prisma/client';
+import type {
+  Label,
+  Milestone,
+  Prisma,
+  Project,
+  Task,
+  TaskWatcher,
+  Workspace,
+  WorkspaceMember,
+} from '../../generated/prisma/client';
 import type { PaginatedResponse } from '../common/types/paginated-response.type';
+import type {
+  TaskWithLabels,
+  TaskWithLabelsAndPeople,
+} from './types/task-with-relations.type';
+import { WorkspaceAccessService } from '../workspace-access/workspace-access.service';
 
 @Injectable()
 export class TasksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly taskActivityService: TaskActivityService,
-    private readonly notificationsQueueService: NotificationsQueueService,
+    private readonly taskNotificationsService: TaskNotificationsService,
+    private readonly workspaceAccessService: WorkspaceAccessService,
   ) {}
 
-  private async ensureProjectMember(projectId: string, userId: string) {
-    const project = await this.prisma.project.findFirst({
-      where: {
-        id: projectId,
-        workspace: {
-          members: {
-            some: {
-              userId,
-            },
-          },
-        },
-      },
-    });
+  private async ensureProjectMemberByUserId(
+    projectId: string,
+    userId: string,
+  ): Promise<void> {
+    const isMember = await this.workspaceAccessService.isProjectMember(
+      projectId,
+      userId,
+    );
 
-    if (!project) {
-      throw new NotFoundException('Project not found');
-    }
-
-    return project;
-  }
-
-  private async ensureProjectMemberByUserId(projectId: string, userId: string) {
-    const project = await this.prisma.project.findFirst({
-      where: {
-        id: projectId,
-        workspace: {
-          members: {
-            some: {
-              userId,
-            },
-          },
-        },
-      },
-    });
-
-    if (!project) {
+    if (!isMember) {
       throw new NotFoundException('Assignee not found');
     }
-
-    return project;
   }
 
-  private async ensureLabelInTaskWorkspace(taskId: string, labelId: string) {
+  private async ensureLabelInTaskWorkspace(
+    taskId: string,
+    labelId: string,
+  ): Promise<Label> {
     const label = await this.prisma.label.findFirst({
       where: {
         id: labelId,
@@ -98,7 +87,21 @@ export class TasksService {
     return label;
   }
 
-  private async getTaskWithMembership(taskId: string, userId: string) {
+  private async getTaskWithMembership(
+    taskId: string,
+    userId: string,
+  ): Promise<{
+    task: Task & {
+      project: Project & {
+        workspace: Workspace & {
+          members: Pick<WorkspaceMember, 'id' | 'role'>[];
+        };
+      };
+      labels: Label[];
+      watchers: TaskWatcher[];
+    };
+    membership: { id: string; role: WorkspaceRole };
+  }> {
     const task = await this.prisma.task.findFirst({
       where: {
         id: taskId,
@@ -155,7 +158,7 @@ export class TasksService {
     creatorId: string,
     userId: string,
     role: WorkspaceRole,
-  ) {
+  ): boolean {
     const canManageAnyTask =
       role === WorkspaceRole.OWNER || role === WorkspaceRole.ADMIN;
 
@@ -167,7 +170,7 @@ export class TasksService {
   private validateTaskDates(
     startDate?: string | null,
     dueDate?: string | null,
-  ) {
+  ): void {
     if (!startDate || !dueDate) {
       return;
     }
@@ -180,7 +183,7 @@ export class TasksService {
   private async ensureMilestoneInTaskProject(
     projectId: string,
     milestoneId: string,
-  ) {
+  ): Promise<Milestone> {
     const milestone = await this.prisma.milestone.findFirst({
       where: {
         id: milestoneId,
@@ -195,64 +198,12 @@ export class TasksService {
     return milestone;
   }
 
-  private async createTaskAssignedNotification(
-    userId: string,
-    assigneeId: string | null,
-    task: {
-      id: string;
-      title: string;
-      projectId: string;
-    },
-  ) {
-    if (!assigneeId || userId === assigneeId) {
-      return;
-    }
-
-    await this.notificationsQueueService.addCreateNotificationJob({
-      userId: assigneeId,
-      type: NotificationType.TASK_ASSIGNED,
-      title: 'You were assigned to a task',
-      message: task.title,
-      data: {
-        taskId: task.id,
-        projectId: task.projectId,
-      },
-    });
-  }
-
-  private async createTaskStatusChangedNotification(
-    userId: string,
-    watcherIds: string[],
-    task: {
-      id: string;
-      title: string;
-      projectId: string;
-    },
-  ) {
-    const recipientIds = watcherIds.filter((watcherId) => watcherId !== userId);
-
-    await Promise.all(
-      recipientIds.map((recipientId) =>
-        this.notificationsQueueService.addCreateNotificationJob({
-          userId: recipientId,
-          type: NotificationType.TASK_STATUS_CHANGED,
-          title: 'Task status was changed',
-          message: task.title,
-          data: {
-            taskId: task.id,
-            projectId: task.projectId,
-          },
-        }),
-      ),
-    );
-  }
-
   async create(
     creatorId: string,
     projectId: string,
     createTaskDto: CreateTaskDto,
-  ) {
-    await this.ensureProjectMember(projectId, creatorId);
+  ): Promise<Task> {
+    await this.workspaceAccessService.ensureProjectMember(projectId, creatorId);
 
     this.validateTaskDates(createTaskDto.startDate, createTaskDto.dueDate);
 
@@ -290,7 +241,7 @@ export class TasksService {
     projectId: string,
     taskId: string,
     updateTaskDto: UpdateTaskDto,
-  ) {
+  ): Promise<Task> {
     const { task, membership } = await this.getTaskWithMembership(
       taskId,
       userId,
@@ -338,7 +289,7 @@ export class TasksService {
         );
 
         const watcherIds = task.watchers.map((watcher) => watcher.userId);
-        await this.createTaskStatusChangedNotification(
+        await this.taskNotificationsService.notifyStatusChanged(
           userId,
           watcherIds,
           task,
@@ -367,7 +318,7 @@ export class TasksService {
     });
   }
 
-  findOneByMember(userId: string, taskId: string) {
+  findOneByMember(userId: string, taskId: string): Promise<Task | null> {
     return this.prisma.task.findFirst({
       where: {
         id: taskId,
@@ -389,7 +340,7 @@ export class TasksService {
     projectId: string,
     query: FindTasksQueryDto,
   ): Promise<PaginatedResponse<Task>> {
-    await this.ensureProjectMember(projectId, userId);
+    await this.workspaceAccessService.ensureProjectMember(projectId, userId);
 
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
@@ -481,7 +432,7 @@ export class TasksService {
     };
   }
 
-  async remove(userId: string, taskId: string) {
+  async remove(userId: string, taskId: string): Promise<void> {
     const { task, membership } = await this.getTaskWithMembership(
       taskId,
       userId,
@@ -504,8 +455,8 @@ export class TasksService {
     projectId: string,
     taskId: string,
     assigneeId: string | null,
-  ) {
-    await this.ensureProjectMember(projectId, userId);
+  ): Promise<Task> {
+    await this.workspaceAccessService.ensureProjectMember(projectId, userId);
 
     if (assigneeId) {
       await this.ensureProjectMemberByUserId(projectId, assigneeId);
@@ -534,7 +485,7 @@ export class TasksService {
         tx,
       );
 
-      await this.createTaskAssignedNotification(
+      await this.taskNotificationsService.notifyAssigned(
         userId,
         assigneeId,
         updatedTask,
@@ -544,7 +495,11 @@ export class TasksService {
     });
   }
 
-  async attachLabel(taskId: string, labelId: string, userId: string) {
+  async attachLabel(
+    taskId: string,
+    labelId: string,
+    userId: string,
+  ): Promise<TaskWithLabels> {
     const { task, membership } = await this.getTaskWithMembership(
       taskId,
       userId,
@@ -591,7 +546,11 @@ export class TasksService {
     });
   }
 
-  async detachLabel(taskId: string, labelId: string, userId: string) {
+  async detachLabel(
+    taskId: string,
+    labelId: string,
+    userId: string,
+  ): Promise<Task> {
     const { task, membership } = await this.getTaskWithMembership(
       taskId,
       userId,
@@ -634,17 +593,56 @@ export class TasksService {
     });
   }
 
-  async archive(userId: string, taskId: string) {
+  archive(userId: string, taskId: string): Promise<TaskWithLabels> {
+    return this.updateWithActivity(
+      userId,
+      taskId,
+      { archivedAt: new Date() },
+      TaskActivityType.TASK_ARCHIVED,
+    );
+  }
+
+  unarchive(userId: string, taskId: string): Promise<TaskWithLabels> {
+    return this.updateWithActivity(
+      userId,
+      taskId,
+      { archivedAt: null },
+      TaskActivityType.TASK_UNARCHIVED,
+    );
+  }
+
+  flag(userId: string, taskId: string): Promise<TaskWithLabels> {
+    return this.updateWithActivity(
+      userId,
+      taskId,
+      { flaggedAt: new Date() },
+      TaskActivityType.TASK_FLAGGED,
+    );
+  }
+
+  unflag(userId: string, taskId: string): Promise<TaskWithLabels> {
+    return this.updateWithActivity(
+      userId,
+      taskId,
+      { flaggedAt: null },
+      TaskActivityType.TASK_UNFLAGGED,
+    );
+  }
+
+  private async updateWithActivity(
+    userId: string,
+    taskId: string,
+    data: Prisma.TaskUpdateInput,
+    activityType: TaskActivityType,
+  ): Promise<TaskWithLabels> {
     await this.getTaskWithMembership(taskId, userId);
 
     return this.prisma.$transaction(async (tx) => {
-      const archivedTask = await tx.task.update({
+      const updatedTask = await tx.task.update({
         where: {
           id: taskId,
         },
-        data: {
-          archivedAt: new Date(),
-        },
+        data,
         include: {
           labels: true,
         },
@@ -652,105 +650,18 @@ export class TasksService {
 
       await this.taskActivityService.create(
         {
-          taskId: archivedTask.id,
+          taskId: updatedTask.id,
           actorId: userId,
-          type: TaskActivityType.TASK_ARCHIVED,
+          type: activityType,
         },
         tx,
       );
 
-      return archivedTask;
+      return updatedTask;
     });
   }
 
-  async unarchive(userId: string, taskId: string) {
-    await this.getTaskWithMembership(taskId, userId);
-
-    return this.prisma.$transaction(async (tx) => {
-      const unarchivedTask = await tx.task.update({
-        where: {
-          id: taskId,
-        },
-        data: {
-          archivedAt: null,
-        },
-        include: {
-          labels: true,
-        },
-      });
-
-      await this.taskActivityService.create(
-        {
-          taskId: unarchivedTask.id,
-          actorId: userId,
-          type: TaskActivityType.TASK_UNARCHIVED,
-        },
-        tx,
-      );
-
-      return unarchivedTask;
-    });
-  }
-
-  async flag(userId: string, taskId: string) {
-    await this.getTaskWithMembership(taskId, userId);
-
-    return this.prisma.$transaction(async (tx) => {
-      const archivedTask = await tx.task.update({
-        where: {
-          id: taskId,
-        },
-        data: {
-          flaggedAt: new Date(),
-        },
-        include: {
-          labels: true,
-        },
-      });
-
-      await this.taskActivityService.create(
-        {
-          taskId: archivedTask.id,
-          actorId: userId,
-          type: TaskActivityType.TASK_FLAGGED,
-        },
-        tx,
-      );
-
-      return archivedTask;
-    });
-  }
-
-  async unflag(userId: string, taskId: string) {
-    await this.getTaskWithMembership(taskId, userId);
-
-    return this.prisma.$transaction(async (tx) => {
-      const archivedTask = await tx.task.update({
-        where: {
-          id: taskId,
-        },
-        data: {
-          flaggedAt: null,
-        },
-        include: {
-          labels: true,
-        },
-      });
-
-      await this.taskActivityService.create(
-        {
-          taskId: archivedTask.id,
-          actorId: userId,
-          type: TaskActivityType.TASK_UNFLAGGED,
-        },
-        tx,
-      );
-
-      return archivedTask;
-    });
-  }
-
-  async clone(userId: string, taskId: string) {
+  async clone(userId: string, taskId: string): Promise<TaskWithLabels> {
     const { task } = await this.getTaskWithMembership(taskId, userId);
 
     if (!task) {
@@ -796,7 +707,7 @@ export class TasksService {
     projectId: string,
     taskId: string,
     setTaskMilestoneDto: SetTaskMilestoneDto,
-  ) {
+  ): Promise<Task> {
     const { task } = await this.getTaskWithMembership(taskId, userId);
 
     const milestoneId = setTaskMilestoneDto.milestoneId;
@@ -836,8 +747,11 @@ export class TasksService {
     userId: string,
     projectId: string,
     createTaskFromTemplateDto: CreateTaskFromTemplateDto,
-  ) {
-    const project = await this.ensureProjectMember(projectId, userId);
+  ): Promise<TaskWithLabelsAndPeople> {
+    const project = await this.workspaceAccessService.ensureProjectMember(
+      projectId,
+      userId,
+    );
 
     const taskTemplate = await this.prisma.taskTemplate.findFirst({
       where: {

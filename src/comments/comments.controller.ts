@@ -8,6 +8,7 @@ import {
   Get,
   Delete,
   Query,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -15,6 +16,7 @@ import {
   ApiCreatedResponse,
   ApiNotFoundResponse,
   ApiUnauthorizedResponse,
+  ApiTags,
 } from '@nestjs/swagger';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -29,7 +31,11 @@ import { PaginatedCommentsResponseDto } from './dto/responses/paginated-comments
 import { FindCommentsQueryDto } from './dto/find-comments-query.dto';
 
 import type { CurrentUser } from '../auth/types/current-user.type';
+import type { TaskComment } from '../../generated/prisma/client';
+import type { PaginatedResponse } from '../common/types/paginated-response.type';
+import type { TaskCommentWithAuthor } from './types/task-comment-with-author.type';
 
+@ApiTags('Task comments')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('tasks/:taskId/comments')
@@ -48,9 +54,9 @@ export class CommentsController {
   @Post()
   create(
     @GetCurrentUser() user: CurrentUser,
-    @Param('taskId') taskId: string,
+    @Param('taskId', ParseUUIDPipe) taskId: string,
     @Body() createCommentDto: CreateCommentDto,
-  ) {
+  ): Promise<TaskCommentWithAuthor> {
     return this.commentsService.create(user.id, taskId, createCommentDto);
   }
 
@@ -66,9 +72,9 @@ export class CommentsController {
   @Patch(':commentId')
   update(
     @GetCurrentUser() user: CurrentUser,
-    @Param('commentId') commentId: string,
+    @Param('commentId', ParseUUIDPipe) commentId: string,
     @Body() updateCommentDto: UpdateCommentDto,
-  ) {
+  ): Promise<TaskCommentWithAuthor> {
     return this.commentsService.update(user.id, commentId, updateCommentDto);
   }
 
@@ -84,8 +90,8 @@ export class CommentsController {
   @Get(':commentId')
   getComment(
     @GetCurrentUser() user: CurrentUser,
-    @Param('commentId') commentId: string,
-  ) {
+    @Param('commentId', ParseUUIDPipe) commentId: string,
+  ): Promise<TaskCommentWithAuthor | null> {
     return this.commentsService.getComment(commentId, user.id);
   }
 
@@ -101,8 +107,8 @@ export class CommentsController {
   @Delete(':commentId')
   async delete(
     @GetCurrentUser() user: CurrentUser,
-    @Param('commentId') commentId: string,
-  ) {
+    @Param('commentId', ParseUUIDPipe) commentId: string,
+  ): Promise<{ success: boolean }> {
     await this.commentsService.delete(user.id, commentId);
 
     return {
@@ -122,9 +128,9 @@ export class CommentsController {
   @Get()
   findAll(
     @GetCurrentUser() user: CurrentUser,
-    @Param('taskId') taskId: string,
+    @Param('taskId', ParseUUIDPipe) taskId: string,
     @Query() query: FindCommentsQueryDto,
-  ) {
+  ): Promise<PaginatedResponse<TaskComment>> {
     return this.commentsService.findAllByTask(taskId, user.id, query);
   }
 }

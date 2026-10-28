@@ -22,6 +22,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import type { JwtPayload } from './types/jwt-payload.type';
 import type { CurrentUser } from './types/current-user.type';
 import type { PasswordResetPayload } from './types/password-reset-payload.type';
+import type { AuthResponse, AuthUser } from './types/auth-response.type';
 
 @Injectable()
 export class AuthService {
@@ -33,7 +34,7 @@ export class AuthService {
     private readonly emailQueueService: EmailQueueService,
   ) {}
 
-  async register(registerDto: RegisterDto) {
+  async register(registerDto: RegisterDto): Promise<AuthResponse> {
     const existingUser = await this.usersService.findByEmail(registerDto.email);
     if (existingUser) {
       throw new ConflictException('Email already in use');
@@ -51,7 +52,7 @@ export class AuthService {
     return this.createAuthResponse(safeUser);
   }
 
-  async login(loginDto: LoginDto) {
+  async login(loginDto: LoginDto): Promise<AuthResponse> {
     const user = await this.usersService.findByEmail(loginDto.email);
     if (!user) {
       throw new ConflictException('Invalid credentials');
@@ -71,7 +72,7 @@ export class AuthService {
     return this.createAuthResponse(safeUser);
   }
 
-  private async generateAccessToken(user: CurrentUser) {
+  private async generateAccessToken(user: CurrentUser): Promise<string> {
     const payload = {
       sub: user.id,
       email: user.email,
@@ -80,7 +81,7 @@ export class AuthService {
     return this.jwtService.signAsync(payload);
   }
 
-  private async generateRefreshToken(user: CurrentUser) {
+  private async generateRefreshToken(user: CurrentUser): Promise<string> {
     const payload = {
       sub: user.id,
       email: user.email,
@@ -94,7 +95,7 @@ export class AuthService {
     });
   }
 
-  private async generateResetPasswordToken(user: CurrentUser) {
+  private async generateResetPasswordToken(user: CurrentUser): Promise<string> {
     const payload = {
       sub: user.id,
       email: user.email,
@@ -111,7 +112,7 @@ export class AuthService {
     });
   }
 
-  private getRefreshTokenExpiresAt() {
+  private getRefreshTokenExpiresAt(): Date {
     const expiresIn = this.configService.getOrThrow<string>(
       'JWT_REFRESH_EXPIRES_IN',
     );
@@ -142,7 +143,7 @@ export class AuthService {
     return expiresAt;
   }
 
-  private async createRefreshToken(user: CurrentUser) {
+  private async createRefreshToken(user: CurrentUser): Promise<string> {
     const refreshToken = await this.generateRefreshToken(user);
     const tokenHash = await bcrypt.hash(refreshToken, 10);
 
@@ -157,14 +158,7 @@ export class AuthService {
     return refreshToken;
   }
 
-  private async createAuthResponse(user: {
-    id: string;
-    email: string;
-    firstName?: string | null;
-    lastName?: string | null;
-    createdAt?: Date;
-    updatedAt?: Date;
-  }) {
+  private async createAuthResponse(user: AuthUser): Promise<AuthResponse> {
     const [accessToken, refreshToken] = await Promise.all([
       this.generateAccessToken(user),
       this.createRefreshToken(user),
@@ -177,7 +171,7 @@ export class AuthService {
     };
   }
 
-  async refreshToken(refreshTokenDto: RefreshTokenDto) {
+  async refreshToken(refreshTokenDto: RefreshTokenDto): Promise<AuthResponse> {
     let payload: JwtPayload;
 
     try {
@@ -229,7 +223,7 @@ export class AuthService {
   private findMatchingRefreshToken(
     refreshToken: string,
     refreshTokens: { id: string; tokenHash: string }[],
-  ) {
+  ): { id: string; tokenHash: string } | null {
     for (const storedRefreshToken of refreshTokens) {
       if (bcrypt.compareSync(refreshToken, storedRefreshToken.tokenHash)) {
         return storedRefreshToken;
@@ -238,7 +232,7 @@ export class AuthService {
     return null;
   }
 
-  async logout(refreshTokenDto: RefreshTokenDto) {
+  async logout(refreshTokenDto: RefreshTokenDto): Promise<void> {
     let payload: JwtPayload;
 
     try {
@@ -272,7 +266,7 @@ export class AuthService {
     }
   }
 
-  async logoutAll(userId: string) {
+  async logoutAll(userId: string): Promise<void> {
     await this.prisma.refreshToken.updateMany({
       where: {
         userId,
@@ -284,7 +278,7 @@ export class AuthService {
     });
   }
 
-  async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+  async forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<void> {
     const user = await this.usersService.findByEmail(forgotPasswordDto.email);
 
     if (!user) {
@@ -307,7 +301,7 @@ export class AuthService {
     });
   }
 
-  async resetPassword(resetPasswordDto: ResetPasswordDto) {
+  async resetPassword(resetPasswordDto: ResetPasswordDto): Promise<void> {
     let payload: PasswordResetPayload;
 
     try {

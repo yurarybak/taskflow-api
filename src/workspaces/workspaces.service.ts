@@ -9,12 +9,21 @@ import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { AddWorkspaceMemberDto } from './dto/add-workspace-member.dto';
 import { UpdateWorkspaceMemberDto } from './dto/update-workspace-member.dto';
 import { WorkspaceRole } from '../../generated/prisma/enums';
+import type { Workspace, WorkspaceMember } from '../../generated/prisma/client';
+import type { WorkspaceMemberWithUser } from './types/workspace-member-with-user.type';
+import { WorkspaceAccessService } from '../workspace-access/workspace-access.service';
 
 @Injectable()
 export class WorkspacesService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly workspaceAccessService: WorkspaceAccessService,
+  ) {}
 
-  create(ownerId: string, createWorkspaceDto: CreateWorkspaceDto) {
+  create(
+    ownerId: string,
+    createWorkspaceDto: CreateWorkspaceDto,
+  ): Promise<Workspace> {
     return this.prisma.$transaction(async (tx) => {
       const workspace = await tx.workspace.create({
         data: {
@@ -35,7 +44,7 @@ export class WorkspacesService {
     });
   }
 
-  findAllByOwner(ownerId: string) {
+  findAllByOwner(ownerId: string): Promise<Workspace[]> {
     return this.prisma.workspace.findMany({
       where: {
         ownerId,
@@ -46,7 +55,10 @@ export class WorkspacesService {
     });
   }
 
-  async findOneByOwner(ownerId: string, workspaceId: string) {
+  async findOneByOwner(
+    ownerId: string,
+    workspaceId: string,
+  ): Promise<Workspace> {
     const workspace = await this.prisma.workspace.findFirst({
       where: {
         id: workspaceId,
@@ -65,7 +77,7 @@ export class WorkspacesService {
     ownerId: string,
     workspaceId: string,
     updateWorkspaceDto: UpdateWorkspaceDto,
-  ) {
+  ): Promise<Workspace> {
     return this.prisma.workspace.update({
       where: {
         id: workspaceId,
@@ -75,7 +87,7 @@ export class WorkspacesService {
     });
   }
 
-  async remove(ownerId: string, workspaceId: string) {
+  async remove(ownerId: string, workspaceId: string): Promise<Workspace> {
     await this.ensureWorkspaceRole(workspaceId, ownerId, [WorkspaceRole.OWNER]);
 
     return this.prisma.workspace.delete({
@@ -86,9 +98,15 @@ export class WorkspacesService {
     });
   }
 
-  async findMembers(userId: string, workspaceId: string) {
+  async findMembers(
+    userId: string,
+    workspaceId: string,
+  ): Promise<WorkspaceMemberWithUser[]> {
     // Ensure workspace exists and belongs to the user
-    await this.ensureWorkspaceMember(workspaceId, userId);
+    await this.workspaceAccessService.getWorkspaceMembership(
+      workspaceId,
+      userId,
+    );
 
     return this.prisma.workspaceMember.findMany({
       where: {
@@ -116,7 +134,7 @@ export class WorkspacesService {
     ownerId: string,
     workspaceId: string,
     addWorkspaceMemberDto: AddWorkspaceMemberDto,
-  ) {
+  ): Promise<WorkspaceMemberWithUser> {
     const membership = await this.ensureWorkspaceRole(workspaceId, ownerId, [
       WorkspaceRole.OWNER,
       WorkspaceRole.ADMIN,
@@ -178,29 +196,15 @@ export class WorkspacesService {
     });
   }
 
-  private async ensureWorkspaceMember(workspaceId: string, userId: string) {
-    const membership = await this.prisma.workspaceMember.findUnique({
-      where: {
-        workspaceId_userId: {
-          workspaceId,
-          userId,
-        },
-      },
-    });
-
-    if (!membership) {
-      throw new NotFoundException('Workspace member not found');
-    }
-
-    return membership;
-  }
-
   private async ensureWorkspaceRole(
     workspaceId: string,
     userId: string,
     allowedRoles: WorkspaceRole[],
-  ) {
-    const membership = await this.ensureWorkspaceMember(workspaceId, userId);
+  ): Promise<WorkspaceMember> {
+    const membership = await this.workspaceAccessService.getWorkspaceMembership(
+      workspaceId,
+      userId,
+    );
 
     if (!allowedRoles.includes(membership.role)) {
       throw new NotFoundException('Workspace not found');
@@ -214,7 +218,7 @@ export class WorkspacesService {
     workspaceId: string,
     memberId: string,
     updateWorkspaceMemberDto: UpdateWorkspaceMemberDto,
-  ) {
+  ): Promise<WorkspaceMemberWithUser> {
     // Only owners can update member roles
     await this.ensureWorkspaceRole(workspaceId, userId, [WorkspaceRole.OWNER]);
 
@@ -262,7 +266,11 @@ export class WorkspacesService {
     });
   }
 
-  async removeMember(userId: string, workspaceId: string, memberId: string) {
+  async removeMember(
+    userId: string,
+    workspaceId: string,
+    memberId: string,
+  ): Promise<void> {
     const requesterMembership = await this.ensureWorkspaceRole(
       workspaceId,
       userId,

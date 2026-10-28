@@ -12,6 +12,7 @@ import {
   ParseFilePipe,
   MaxFileSizeValidator,
   FileTypeValidator,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -22,6 +23,7 @@ import {
   ApiUnauthorizedResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
+  ApiTags,
 } from '@nestjs/swagger';
 import { existsSync } from 'fs';
 import { join } from 'path';
@@ -36,7 +38,9 @@ import { AttachmentResponseDto } from './dto/responses/attachment-response.dto';
 import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
 
 import type { CurrentUser } from '../auth/types/current-user.type';
+import type { TaskAttachment } from '../../generated/prisma/client';
 
+@ApiTags('Task attachments')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('tasks/:taskId/attachments')
@@ -76,7 +80,7 @@ export class AttachmentsController {
   @Post()
   create(
     @GetCurrentUser() user: CurrentUser,
-    @Param('taskId') taskId: string,
+    @Param('taskId', ParseUUIDPipe) taskId: string,
     @UploadedFile(
       new ParseFilePipe({
         fileIsRequired: true,
@@ -92,7 +96,7 @@ export class AttachmentsController {
       }),
     )
     file: Express.Multer.File,
-  ) {
+  ): Promise<TaskAttachment> {
     return this.attachmentsService.create(user.id, taskId, file);
   }
 
@@ -110,8 +114,8 @@ export class AttachmentsController {
   @Get()
   findAll(
     @GetCurrentUser() user: CurrentUser,
-    @Param('taskId') taskId: string,
-  ) {
+    @Param('taskId', ParseUUIDPipe) taskId: string,
+  ): Promise<TaskAttachment[]> {
     return this.attachmentsService.findAllByTask(taskId, user.id);
   }
 
@@ -128,9 +132,9 @@ export class AttachmentsController {
   @Get(':attachmentId/download')
   async download(
     @GetCurrentUser() user: CurrentUser,
-    @Param('attachmentId') attachmentId: string,
+    @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
     @Res() response: Response,
-  ) {
+  ): Promise<void> {
     const attachment = await this.attachmentsService.findOne(
       attachmentId,
       user.id,
@@ -165,8 +169,8 @@ export class AttachmentsController {
   @Delete(':attachmentId')
   async delete(
     @GetCurrentUser() user: CurrentUser,
-    @Param('attachmentId') attachmentId: string,
-  ) {
+    @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
+  ): Promise<{ success: boolean }> {
     await this.attachmentsService.delete(attachmentId, user.id);
 
     return {

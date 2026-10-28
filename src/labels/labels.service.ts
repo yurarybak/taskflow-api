@@ -9,34 +9,25 @@ import { WorkspaceRole } from '../../generated/prisma/enums';
 
 import { CreateLabelDto } from './dto/create-label.dto';
 import { UpdateLabelDto } from './dto/update-label.dto';
+import type { WorkspaceMember, Label } from '../../generated/prisma/client';
+import { WorkspaceAccessService } from '../workspace-access/workspace-access.service';
 
 @Injectable()
 export class LabelsService {
-  constructor(private readonly prisma: PrismaService) {}
-
-  private async ensureWorkspaceMember(workspaceId: string, userId: string) {
-    const membership = await this.prisma.workspaceMember.findUnique({
-      where: {
-        workspaceId_userId: {
-          workspaceId,
-          userId,
-        },
-      },
-    });
-
-    if (!membership) {
-      throw new NotFoundException('Workspace not found');
-    }
-
-    return membership;
-  }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly workspaceAccessService: WorkspaceAccessService,
+  ) {}
 
   private async ensureWorkspaceRole(
     workspaceId: string,
     userId: string,
     allowedRoles: WorkspaceRole[],
-  ) {
-    const membership = await this.ensureWorkspaceMember(workspaceId, userId);
+  ): Promise<WorkspaceMember> {
+    const membership = await this.workspaceAccessService.getWorkspaceMembership(
+      workspaceId,
+      userId,
+    );
 
     if (!allowedRoles.includes(membership.role)) {
       throw new NotFoundException('Workspace not found');
@@ -49,7 +40,7 @@ export class LabelsService {
     workspaceId: string,
     userId: string,
     createLabelDto: CreateLabelDto,
-  ) {
+  ): Promise<Label> {
     await this.ensureWorkspaceRole(workspaceId, userId, [
       WorkspaceRole.OWNER,
       WorkspaceRole.ADMIN,
@@ -80,8 +71,11 @@ export class LabelsService {
     workspaceId: string,
     userId: string,
     labelId: string,
-  ) {
-    await this.ensureWorkspaceMember(workspaceId, userId);
+  ): Promise<Label> {
+    await this.workspaceAccessService.getWorkspaceMembership(
+      workspaceId,
+      userId,
+    );
 
     const label = await this.prisma.label.findFirst({
       where: {
@@ -90,9 +84,11 @@ export class LabelsService {
       },
     });
 
-    if (label) {
+    if (!label) {
       throw new NotFoundException('Label not found');
     }
+
+    return label;
   }
 
   async update(
@@ -100,7 +96,7 @@ export class LabelsService {
     userId: string,
     labelId: string,
     updateLabelDto: UpdateLabelDto,
-  ) {
+  ): Promise<Label> {
     await this.ensureWorkspaceRole(workspaceId, userId, [
       WorkspaceRole.OWNER,
       WorkspaceRole.ADMIN,
@@ -116,8 +112,11 @@ export class LabelsService {
     });
   }
 
-  async findAll(workspaceId: string, userId: string) {
-    await this.ensureWorkspaceMember(workspaceId, userId);
+  async findAll(workspaceId: string, userId: string): Promise<Label[]> {
+    await this.workspaceAccessService.getWorkspaceMembership(
+      workspaceId,
+      userId,
+    );
 
     return this.prisma.label.findMany({
       where: {
@@ -126,11 +125,19 @@ export class LabelsService {
     });
   }
 
-  async findOne(workspaceId: string, userId: string, labelId: string) {
+  async findOne(
+    workspaceId: string,
+    userId: string,
+    labelId: string,
+  ): Promise<Label> {
     return this.findOneByMember(workspaceId, userId, labelId);
   }
 
-  async remove(workspaceId: string, userId: string, labelId: string) {
+  async remove(
+    workspaceId: string,
+    userId: string,
+    labelId: string,
+  ): Promise<Label> {
     await this.ensureWorkspaceRole(workspaceId, userId, [
       WorkspaceRole.OWNER,
       WorkspaceRole.ADMIN,

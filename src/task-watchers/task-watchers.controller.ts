@@ -5,6 +5,7 @@ import {
   Post,
   Delete,
   Param,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -14,6 +15,7 @@ import {
   ApiUnauthorizedResponse,
   ApiNotFoundResponse,
   ApiConflictResponse,
+  ApiTags,
 } from '@nestjs/swagger';
 import { TaskWatchersService } from './task-watchers.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -22,7 +24,10 @@ import { SuccessResponseDto } from '../common/dto/responses/success-response.dto
 import { TaskWatcherResponseDto } from './dto/responses/task-watcher-response.dto';
 
 import type { CurrentUser } from '../auth/types/current-user.type';
+import type { TaskWatcher, User } from '../../generated/prisma/client';
+import type { TaskWatcherWithUser } from './types/task-watcher-with-user.type';
 
+@ApiTags('Task watchers')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('tasks/:taskId/watchers')
@@ -43,8 +48,10 @@ export class TaskWatchersController {
   @Get()
   findAll(
     @GetCurrentUser() user: CurrentUser,
-    @Param('taskId') taskId: string,
-  ) {
+    @Param('taskId', ParseUUIDPipe) taskId: string,
+  ): Promise<
+    (TaskWatcher & { user: Pick<User, 'id' | 'firstName' | 'lastName'> })[]
+  > {
     return this.taskWatchersService.findAllByTask(user.id, taskId);
   }
 
@@ -63,7 +70,10 @@ export class TaskWatchersController {
     description: 'User is already watching this task',
   })
   @Post('/me')
-  addMe(@GetCurrentUser() user: CurrentUser, @Param('taskId') taskId: string) {
+  addMe(
+    @GetCurrentUser() user: CurrentUser,
+    @Param('taskId', ParseUUIDPipe) taskId: string,
+  ): Promise<TaskWatcherWithUser> {
     return this.taskWatchersService.addMe(user.id, taskId);
   }
 
@@ -81,8 +91,8 @@ export class TaskWatchersController {
   @Delete('/me')
   async removeMe(
     @GetCurrentUser() user: CurrentUser,
-    @Param('taskId') taskId: string,
-  ) {
+    @Param('taskId', ParseUUIDPipe) taskId: string,
+  ): Promise<{ success: boolean }> {
     await this.taskWatchersService.removeMe(user.id, taskId);
 
     return {
@@ -107,9 +117,9 @@ export class TaskWatchersController {
   @Post('/:userId')
   addWatcher(
     @GetCurrentUser() user: CurrentUser,
-    @Param('taskId') taskId: string,
-    @Param('userId') watcherUserId: string,
-  ) {
+    @Param('taskId', ParseUUIDPipe) taskId: string,
+    @Param('userId', ParseUUIDPipe) watcherUserId: string,
+  ): Promise<TaskWatcherWithUser> {
     return this.taskWatchersService.addWatcher(user.id, taskId, watcherUserId);
   }
 
@@ -127,9 +137,9 @@ export class TaskWatchersController {
   @Delete('/:userId')
   async removeWatcher(
     @GetCurrentUser() user: CurrentUser,
-    @Param('taskId') taskId: string,
-    @Param('userId') watcherUserId: string,
-  ) {
+    @Param('taskId', ParseUUIDPipe) taskId: string,
+    @Param('userId', ParseUUIDPipe) watcherUserId: string,
+  ): Promise<{ success: boolean }> {
     await this.taskWatchersService.removeWatcher(
       user.id,
       taskId,

@@ -5,35 +5,36 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TaskActivityService } from '../task-activity/task-activity.service';
 import { WorkspaceRole } from '../../generated/prisma/enums';
 import { TaskActivityType } from '../../generated/prisma/enums';
+import type {
+  Task,
+  TaskAttachment,
+  Project,
+  Workspace,
+  WorkspaceMember,
+} from '../../generated/prisma/client';
+import { WorkspaceAccessService } from '../workspace-access/workspace-access.service';
 
 @Injectable()
 export class AttachmentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly taskActivityService: TaskActivityService,
+    private readonly workspaceAccessService: WorkspaceAccessService,
   ) {}
 
-  private async ensureTaskMember(userId: string, taskId: string) {
-    const task = await this.prisma.task.findFirst({
-      where: {
-        id: taskId,
-        project: {
-          workspace: {
-            members: {
-              some: { userId },
-            },
-          },
-        },
-      },
-    });
-    if (!task) {
-      throw new NotFoundException('Task not found or user is not a member');
-    }
-
-    return task;
-  }
-
-  private async getAttachmentWithMembership(id: string, userId: string) {
+  private async getAttachmentWithMembership(
+    id: string,
+    userId: string,
+  ): Promise<{
+    attachment: TaskAttachment & {
+      task: Task & {
+        project: Project & {
+          workspace: Workspace & { members: WorkspaceMember[] };
+        };
+      };
+    };
+    membership: WorkspaceMember;
+  }> {
     const attachment = await this.prisma.taskAttachment.findFirst({
       where: {
         id,
@@ -86,7 +87,7 @@ export class AttachmentsService {
     };
   }
 
-  private async removeFileFromStorage(storageName: string) {
+  private async removeFileFromStorage(storageName: string): Promise<void> {
     try {
       const filePath = join(
         process.cwd(),
@@ -98,13 +99,17 @@ export class AttachmentsService {
       await unlink(filePath);
     } catch (error) {
       // Log the error but do not throw, since the main operation (like deleting the database record) has already succeeded
-      console.error(`Failed to delete file from storage: ${error}`);
+      console.error(`Failed to delete file from storage: ${String(error)}`);
     }
   }
 
-  async create(userId: string, taskId: string, file: Express.Multer.File) {
+  async create(
+    userId: string,
+    taskId: string,
+    file: Express.Multer.File,
+  ): Promise<TaskAttachment> {
     try {
-      await this.ensureTaskMember(userId, taskId);
+      await this.workspaceAccessService.ensureTaskMember(taskId, userId);
 
       return this.prisma.$transaction(async (tx) => {
         const attachment = await tx.taskAttachment.create({
@@ -140,8 +145,11 @@ export class AttachmentsService {
     }
   }
 
-  async findAllByTask(taskId: string, userId: string) {
-    await this.ensureTaskMember(userId, taskId);
+  async findAllByTask(
+    taskId: string,
+    userId: string,
+  ): Promise<TaskAttachment[]> {
+    await this.workspaceAccessService.ensureTaskMember(taskId, userId);
 
     return this.prisma.taskAttachment.findMany({
       where: { taskId },
@@ -149,7 +157,18 @@ export class AttachmentsService {
     });
   }
 
-  async findOne(attachmentId: string, userId: string) {
+  async findOne(
+    attachmentId: string,
+    userId: string,
+  ): Promise<
+    TaskAttachment & {
+      task: Task & {
+        project: Project & {
+          workspace: Workspace & { members: WorkspaceMember[] };
+        };
+      };
+    }
+  > {
     const { attachment } = await this.getAttachmentWithMembership(
       attachmentId,
       userId,
@@ -158,7 +177,7 @@ export class AttachmentsService {
     return attachment;
   }
 
-  async delete(attachmentId: string, userId: string) {
+  async delete(attachmentId: string, userId: string): Promise<void> {
     const { attachment, membership } = await this.getAttachmentWithMembership(
       attachmentId,
       userId,

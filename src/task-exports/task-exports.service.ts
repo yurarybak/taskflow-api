@@ -20,13 +20,14 @@ import { TaskExportStatus } from '../../generated/prisma/enums';
 import type { Prisma, TaskExport } from '../../generated/prisma/client';
 import type { PaginatedResponse } from '../common/types/paginated-response.type';
 import type { TaskExportFilters } from './types/task-export-filters.type';
-import { filter } from 'rxjs';
+import { WorkspaceAccessService } from '../workspace-access/workspace-access.service';
 
 @Injectable()
 export class TaskExportsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly taskExportQueueService: TaskExportQueueService,
+    private readonly workspaceAccessService: WorkspaceAccessService,
   ) {}
 
   private readonly exportDirectory = join(
@@ -35,27 +36,6 @@ export class TaskExportsService {
     'exports',
     'tasks',
   );
-
-  private async ensureProjectMember(userId: string, projectId: string) {
-    const project = await this.prisma.project.findFirst({
-      where: {
-        id: projectId,
-        workspace: {
-          members: {
-            some: {
-              userId,
-            },
-          },
-        },
-      },
-    });
-
-    if (!project) {
-      throw new NotFoundException('Project was not found');
-    }
-
-    return project;
-  }
 
   private buildTasksCsv(
     tasks: {
@@ -91,7 +71,7 @@ export class TaskExportsService {
         name: string;
       }[];
     }[],
-  ) {
+  ): string {
     const headers = [
       'ID',
       'Title',
@@ -141,7 +121,7 @@ export class TaskExportsService {
       .join('\n');
   }
 
-  private escapeCsvValue(value: string | number | null | undefined) {
+  private escapeCsvValue(value: string | number | null | undefined): string {
     if (value === null || value === undefined) {
       return '';
     }
@@ -159,7 +139,7 @@ export class TaskExportsService {
     return stringValue;
   }
 
-  private formatDate(value: Date | null) {
+  private formatDate(value: Date | null): string {
     return value ? value.toISOString() : '';
   }
 
@@ -169,7 +149,7 @@ export class TaskExportsService {
       firstName: string | null;
       lastName: string | null;
     } | null,
-  ) {
+  ): string {
     if (!user) {
       return '';
     }
@@ -270,7 +250,7 @@ export class TaskExportsService {
     exportId: string,
     progress: number,
     job?: Job<ExportProjectTasksCsvJobPayload>,
-  ) {
+  ): Promise<void> {
     await this.prisma.taskExport.update({
       where: {
         id: exportId,
@@ -283,7 +263,7 @@ export class TaskExportsService {
     await job?.updateProgress(progress);
   }
 
-  private async ensureExportNotCancelled(exportId: string) {
+  private async ensureExportNotCancelled(exportId: string): Promise<boolean> {
     const taskExport = await this.prisma.taskExport.findUnique({
       where: {
         id: exportId,
@@ -300,7 +280,7 @@ export class TaskExportsService {
     return true;
   }
 
-  async findOne(exportId: string) {
+  async findOne(exportId: string): Promise<TaskExport> {
     const taskExport = await this.prisma.taskExport.findFirst({
       where: {
         id: exportId,
@@ -317,7 +297,7 @@ export class TaskExportsService {
   async generateProjectTasksCsv(
     exportId: string,
     job?: Job<ExportProjectTasksCsvJobPayload>,
-  ) {
+  ): Promise<TaskExport | undefined> {
     const taskExport = await this.prisma.taskExport.findUnique({
       where: {
         id: exportId,
@@ -449,8 +429,8 @@ export class TaskExportsService {
     userId: string,
     projectId: string,
     createTaskExportDto: CreateTaskExportDto,
-  ) {
-    await this.ensureProjectMember(userId, projectId);
+  ): Promise<TaskExport> {
+    await this.workspaceAccessService.ensureProjectMember(projectId, userId);
 
     const filters = {
       taskIds: createTaskExportDto.taskIds,
@@ -496,7 +476,7 @@ export class TaskExportsService {
     projectId: string,
     query: FindTaskExportsQueryDto,
   ): Promise<PaginatedResponse<TaskExport>> {
-    await this.ensureProjectMember(userId, projectId);
+    await this.workspaceAccessService.ensureProjectMember(projectId, userId);
 
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
@@ -528,7 +508,11 @@ export class TaskExportsService {
     };
   }
 
-  async findOneByMember(userId: string, projectId: string, id: string) {
+  async findOneByMember(
+    userId: string,
+    projectId: string,
+    id: string,
+  ): Promise<TaskExport> {
     const taskExport = await this.prisma.taskExport.findFirst({
       where: {
         id,
@@ -544,7 +528,7 @@ export class TaskExportsService {
     return taskExport;
   }
 
-  async remove(userId: string, projectId: string, id: string) {
+  async remove(userId: string, projectId: string, id: string): Promise<void> {
     const taskExport = await this.findOneByMember(userId, projectId, id);
 
     if (taskExport.storageName) {
@@ -564,7 +548,11 @@ export class TaskExportsService {
     });
   }
 
-  async download(userId: string, projectId: string, id: string) {
+  async download(
+    userId: string,
+    projectId: string,
+    id: string,
+  ): Promise<{ filePath: string; fileName: string }> {
     const taskExport = await this.findOneByMember(userId, projectId, id);
 
     if (taskExport.status !== TaskExportStatus.COMPLETED) {
@@ -587,7 +575,7 @@ export class TaskExportsService {
     };
   }
 
-  async cancel(userId: string, projectId: string, id: string) {
+  async cancel(userId: string, projectId: string, id: string): Promise<void> {
     const taskExport = await this.findOneByMember(userId, projectId, id);
 
     if (
@@ -619,7 +607,7 @@ export class TaskExportsService {
     });
   }
 
-  async retry(userId: string, projectId: string, id: string) {
+  async retry(userId: string, projectId: string, id: string): Promise<void> {
     const taskExport = await this.findOneByMember(userId, projectId, id);
 
     if (
@@ -633,13 +621,8 @@ export class TaskExportsService {
 
     const jobId = `task-export-${taskExport.id}-${Date.now()}`;
 
-    await this.taskExportQueueService.addExportProjectTasksCsvJob(
-      {
-        exportId: taskExport.id,
-      },
-      jobId,
-    );
-
+    // Reset the row before queueing: a fast worker could otherwise finish the job
+    // and then have its COMPLETED status overwritten with PENDING.
     await this.prisma.taskExport.update({
       where: {
         id: taskExport.id,
@@ -652,9 +635,31 @@ export class TaskExportsService {
         completedAt: null,
       },
     });
+
+    try {
+      await this.taskExportQueueService.addExportProjectTasksCsvJob(
+        {
+          exportId: taskExport.id,
+        },
+        jobId,
+      );
+    } catch (error: unknown) {
+      await this.prisma.taskExport.update({
+        where: {
+          id: taskExport.id,
+        },
+        data: {
+          status: TaskExportStatus.FAILED,
+          error: 'Failed to queue export job',
+          completedAt: new Date(),
+        },
+      });
+
+      throw error;
+    }
   }
 
-  private delay(ms: number) {
+  private delay(ms: number): Promise<void> {
     return new Promise((resolve) => {
       setTimeout(resolve, ms);
     });

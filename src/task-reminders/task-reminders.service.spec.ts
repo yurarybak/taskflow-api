@@ -7,7 +7,9 @@ describe('TaskRemindersService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [TaskRemindersService],
-    }).compile();
+    })
+      .useMocker(() => ({}))
+      .compile();
 
     service = module.get<TaskRemindersService>(TaskRemindersService);
   });

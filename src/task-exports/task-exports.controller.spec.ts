@@ -7,7 +7,9 @@ describe('TaskExportsController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [TaskExportsController],
-    }).compile();
+    })
+      .useMocker(() => ({}))
+      .compile();
 
     controller = module.get<TaskExportsController>(TaskExportsController);
   });

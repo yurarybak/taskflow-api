@@ -7,6 +7,7 @@ import {
   Patch,
   Get,
   Delete,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -16,6 +17,7 @@ import {
   ApiOperation,
   ApiUnauthorizedResponse,
   ApiOkResponse,
+  ApiTags,
 } from '@nestjs/swagger';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -28,7 +30,9 @@ import { CreateLabelDto } from './dto/create-label.dto';
 import { UpdateLabelDto } from './dto/update-label.dto';
 import { LabelResponseDto } from './dto/responses/label-response.dto';
 import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
+import type { Label } from '../../generated/prisma/client';
 
+@ApiTags('Labels')
 @ApiBearerAuth()
 @Controller('workspace/:workspaceId/labels')
 @UseGuards(JwtAuthGuard)
@@ -52,9 +56,9 @@ export class LabelsController {
   @Post()
   create(
     @GetCurrentUser() user: CurrentUser,
-    @Param('workspaceId') workspaceId: string,
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Body() createLabelDto: CreateLabelDto,
-  ) {
+  ): Promise<Label> {
     return this.labelService.create(workspaceId, user.id, createLabelDto);
   }
 
@@ -72,10 +76,10 @@ export class LabelsController {
   @Patch('/:labelId')
   update(
     @GetCurrentUser() user: CurrentUser,
-    @Param('workspaceId') workspaceId: string,
-    @Param('labelId') labelId: string,
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Param('labelId', ParseUUIDPipe) labelId: string,
     @Body() updateLabelDto: UpdateLabelDto,
-  ) {
+  ): Promise<Label> {
     return this.labelService.update(
       workspaceId,
       user.id,
@@ -98,9 +102,9 @@ export class LabelsController {
   @Get('/:labelId')
   findOne(
     @GetCurrentUser() user: CurrentUser,
-    @Param('workspaceId') workspaceId: string,
-    @Param('labelId') labelId: string,
-  ) {
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Param('labelId', ParseUUIDPipe) labelId: string,
+  ): Promise<Label> {
     return this.labelService.findOne(workspaceId, user.id, labelId);
   }
 
@@ -118,9 +122,9 @@ export class LabelsController {
   @Delete('/:labelId')
   async remove(
     @GetCurrentUser() user: CurrentUser,
-    @Param('workspaceId') workspaceId: string,
-    @Param('labelId') labelId: string,
-  ) {
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Param('labelId', ParseUUIDPipe) labelId: string,
+  ): Promise<{ success: boolean }> {
     await this.labelService.remove(workspaceId, user.id, labelId);
 
     return {
@@ -142,8 +146,8 @@ export class LabelsController {
   @Get()
   findAll(
     @GetCurrentUser() user: CurrentUser,
-    @Param('workspaceId') workspaceId: string,
-  ) {
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+  ): Promise<Label[]> {
     return this.labelService.findAll(workspaceId, user.id);
   }
 }

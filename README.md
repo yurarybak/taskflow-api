@@ -152,6 +152,8 @@ src/
   task-activity/        Task activity logs
   email/                Email provider integration
   prisma/               Prisma service and module
+  workspace-access/     Shared workspace/project/task membership checks
+  config/               Environment variable validation
   common/               Shared DTOs, types, helpers
 prisma/
   schema.prisma         Database schema
@@ -209,6 +211,23 @@ SENDGRID_PASSWORD_RESET_TEMPLATE_ID="d-your-template-id"
 
 REDIS_HOST="localhost"
 REDIS_PORT="6379"
+```
+
+Optional variables:
+
+```env
+NODE_ENV="development"          # development | production | test
+PORT="3000"
+BULL_BOARD_USERNAME="admin"     # set both to protect /admin/queues with Basic auth
+BULL_BOARD_PASSWORD="change-me"
+```
+
+The environment is validated on startup (`src/config/env.validation.ts`). If a variable is missing or malformed, the API refuses to start and lists every problem, for example:
+
+```text
+Error: Invalid environment configuration:
+  - JWT_REFRESH_EXPIRES_IN must look like 30m, 12h or 7d
+  - REDIS_PORT must be an integer number
 ```
 
 Do not commit real secrets to Git.
@@ -269,8 +288,12 @@ npm run start:dev
 # Start PostgreSQL and Redis
 docker compose up -d
 
-# Build the project
+# Build the project and run the compiled app
 npm run build
+npm run start:prod
+
+# Type-check without emitting
+npx tsc --noEmit
 
 # Run linting
 npm run lint
@@ -280,6 +303,10 @@ npm run format
 
 # Run tests
 npm run test
+
+# Run a single test file or tests matching a name
+npx jest src/tasks/tasks.service.spec.ts
+npx jest -t "records the status change"
 
 # Run e2e tests
 npm run test:e2e
@@ -293,6 +320,10 @@ npx prisma migrate dev --name migration_name
 # Regenerate Prisma client
 npx prisma generate
 ```
+
+### Git hooks
+
+`npm install` installs Husky hooks. The pre-commit hook runs ESLint (with Prettier) on staged `.ts` files via lint-staged and then the unit test suite. A failing lint or test blocks the commit.
 
 ## Docker
 
@@ -328,6 +359,115 @@ Most protected endpoints require a Bearer token:
 Authorization: Bearer <access_token>
 ```
 
+The raw OpenAPI document is served at `http://localhost:3000/api-json`.
+
+## Request Examples
+
+The examples use `curl` against a local API. Route parameters are UUIDs; anything else is rejected with `400`.
+
+### Register and log in
+
+```bash
+curl -X POST http://localhost:3000/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"ann@example.com","password":"Password123!","firstName":"Ann","lastName":"Smith"}'
+# 201 {"accessToken":"...","refreshToken":"...","user":{"id":"...","email":"ann@example.com",...}}
+
+curl -X POST http://localhost:3000/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"ann@example.com","password":"Password123!"}'
+# 200 {"accessToken":"...","refreshToken":"...","user":{...}}
+
+export TOKEN="<accessToken from the response>"
+```
+
+Refresh the access token when it expires:
+
+```bash
+curl -X POST http://localhost:3000/auth/refresh \
+  -H 'Content-Type: application/json' \
+  -d '{"refreshToken":"<refreshToken>"}'
+# 200 {"accessToken":"...","refreshToken":"...","user":{...}}
+```
+
+### Create a workspace, project and task
+
+```bash
+curl -X POST http://localhost:3000/workspaces \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"name":"Acme","description":"Product team"}'
+# 201 {"id":"<workspaceId>","name":"Acme","description":"Product team","ownerId":"...",...}
+
+curl -X POST http://localhost:3000/workspaces/<workspaceId>/projects \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"name":"Website"}'
+# 201 {"id":"<projectId>","name":"Website","workspaceId":"<workspaceId>",...}
+
+curl -X POST http://localhost:3000/projects/<projectId>/tasks \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"title":"Fix login redirect","priority":"HIGH","type":"BUG"}'
+# 201 {"id":"<taskId>","title":"Fix login redirect","status":"TODO","priority":"HIGH","type":"BUG",...}
+```
+
+### List tasks with filters and pagination
+
+Filters accept comma-separated values. Unknown query parameters are rejected with `400`.
+
+```bash
+curl "http://localhost:3000/projects/<projectId>/tasks?page=1&limit=10&statuses=TODO,IN_PROGRESS&priorities=HIGH&search=login" \
+  -H "Authorization: Bearer $TOKEN"
+# 200 {"data":[{...}],"meta":{"total":1,"page":1,"limit":10,"totalPages":1}}
+```
+
+### Update a task, comment on it, archive it
+
+```bash
+curl -X PATCH http://localhost:3000/projects/<projectId>/tasks/<taskId> \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"status":"IN_PROGRESS"}'
+# 200 — also writes a STATUS_CHANGED activity entry and notifies task watchers
+
+curl -X POST http://localhost:3000/tasks/<taskId>/comments \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"content":"Reproduced on Safari, @[<userId>] can you take a look?"}'
+# 201 — users mentioned as @[<userId>] receive a notification
+
+curl -X PATCH http://localhost:3000/projects/<projectId>/tasks/<taskId>/archive \
+  -H "Authorization: Bearer $TOKEN"
+# 200 {"id":"<taskId>","archivedAt":"2026-01-01T10:00:00.000Z",...}
+```
+
+### Export tasks to CSV
+
+```bash
+curl -X POST http://localhost:3000/projects/<projectId>/task-exports \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"statuses":["TODO"]}'
+# 201 {"id":"<exportId>","status":"PENDING","progress":0,...}
+
+curl http://localhost:3000/projects/<projectId>/task-exports/<exportId> \
+  -H "Authorization: Bearer $TOKEN"
+# 200 {"id":"<exportId>","status":"COMPLETED","progress":100,...}
+
+curl -OJ http://localhost:3000/projects/<projectId>/task-exports/<exportId>/download \
+  -H "Authorization: Bearer $TOKEN"
+# 200 text/csv
+```
+
+### Error responses
+
+Validation errors list every failed constraint:
+
+```json
+{
+  "message": ["title must be longer than or equal to 2 characters"],
+  "error": "Bad Request",
+  "statusCode": 400
+}
+```
+
+Resources outside the user's workspaces return `404` rather than `403`, so their existence is not revealed.
+
 ## Queue Dashboard
 
 Bull Board is available locally at:
@@ -347,7 +487,23 @@ It can be used to inspect BullMQ jobs:
 - job payloads and errors
 - job progress
 
-The dashboard is currently intended for local development only and should be protected or disabled before production deployment.
+Access depends on configuration:
+
+| `BULL_BOARD_USERNAME` / `BULL_BOARD_PASSWORD` | `NODE_ENV`     | Result                       |
+| --------------------------------------------- | -------------- | ---------------------------- |
+| set                                           | any            | HTTP Basic auth required     |
+| not set                                       | `production`   | dashboard hidden (`404`)     |
+| not set                                       | anything else  | open, for local development  |
+
+## Security
+
+- **Input validation** — a global `ValidationPipe` with `whitelist` and `forbidNonWhitelisted` rejects unknown fields; every route parameter is checked with `ParseUUIDPipe`.
+- **HTTP headers** — Helmet sets CSP, HSTS, `X-Content-Type-Options` and related headers. The `upgrade-insecure-requests` directive is disabled so Swagger UI and Bull Board work over plain HTTP.
+- **Rate limiting** — `@nestjs/throttler` allows 100 requests per minute per client. Public auth endpoints are stricter (per minute): `register` and `login` 5, `reset-password` 5, `refresh` 10, `forgot-password` 3. Exceeding a limit returns `429`. Limits are kept in memory, so they apply per API instance.
+- **CSRF** — the API authenticates with Bearer tokens sent in the `Authorization` header and does not use cookies, so browsers never attach credentials automatically and classic CSRF does not apply. Revisit this if tokens move to cookies (for example an httpOnly refresh-token cookie).
+- **XSS** — responses are JSON only, served with a restrictive CSP and `nosniff`. Clients must render user content as text (React does this by default).
+- **CORS** — only origins listed in `CORS_ORIGINS` are allowed.
+- **Configuration** — secrets come from `.env` through `ConfigModule` and are validated on startup.
 
 ## Main API Areas
 
@@ -358,16 +514,16 @@ The dashboard is currently intended for local development only and should be pro
 - `/workspaces/:workspaceId/task-templates` - workspace task templates
 - `/projects/:projectId/tasks` - tasks and create-from-template flow
 - `/projects/:projectId/task-exports` - CSV task exports
-- `/projects/:projectId/labels` - labels
+- `/workspace/:workspaceId/labels` - workspace labels (note the singular `workspace`)
 - `/projects/:projectId/milestones` - milestones
 - `/projects/:projectId/saved-filters` - saved task filters
 - `/tasks/:taskId/comments` - task comments
 - `/tasks/:taskId/reminders` - task reminders
-- `/projects/:projectId/tasks/:taskId/attachments` - task attachments
-- `/projects/:projectId/tasks/:taskId/checklist-items` - task checklist items
-- `/projects/:projectId/tasks/:taskId/watchers` - task watchers
+- `/tasks/:taskId/attachments` - task attachments
+- `/tasks/:taskId/checklist-items` - task checklist items
+- `/tasks/:taskId/watchers` - task watchers
+- `/tasks/:taskId/activity` - task activity log
 - `/projects/:projectId/tasks/:taskId/worklogs` - task worklogs
-- `/projects/:projectId/tasks/:taskId/activity` - task activity log
 - `/notifications` - in-app notifications
 
 ## Task Template Flow
@@ -478,7 +634,10 @@ Task export request
 - Global validation pipe with whitelist enabled
 - Prisma migrations for database changes
 - Hashed passwords and refresh tokens
-- Role-based access checks for workspace resources
+- Role-based access checks for workspace resources, centralized in `WorkspaceAccessService`
+- TypeScript `strict` mode; ESLint requires explicit return types and forbids `any`
+- Husky pre-commit hook runs lint and unit tests
+- Winston logging: readable console output in development, JSON lines with `NODE_ENV=production`; uncaught exceptions and unhandled rejections are logged before the process exits
 - Transactions for multi-step database operations
 - BullMQ queues for background jobs
 - Delayed jobs for task reminders
@@ -491,7 +650,6 @@ Task export request
 
 Planned topics for further practice:
 
-- Bull Board protection or production disable switch
 - RabbitMQ for async messaging
 - Kafka basics in a separate flow
 - CI/CD pipeline

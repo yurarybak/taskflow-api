@@ -1,36 +1,23 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { Prisma } from '../../generated/prisma/client';
+import type { Prisma, SavedTaskFilter } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSavedTaskFilterDto } from './dto/create-saved-task-filters.dto';
 import { UpdateSavedTaskFilterDto } from './dto/update-saved-task-filters.dto';
+import { WorkspaceAccessService } from '../workspace-access/workspace-access.service';
 
 @Injectable()
 export class SavedTaskFiltersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly workspaceAccessService: WorkspaceAccessService,
+  ) {}
 
-  private async ensureProjectMember(userId: string, projectId: string) {
-    const project = await this.prisma.project.findFirst({
-      where: {
-        id: projectId,
-        workspace: {
-          members: {
-            some: {
-              userId,
-            },
-          },
-        },
-      },
-    });
-
-    if (!project) {
-      throw new NotFoundException('Project was not found');
-    }
-
-    return project;
-  }
-
-  private async findOneByMember(userId: string, projectId: string, id: string) {
-    await this.ensureProjectMember(userId, projectId);
+  private async findOneByMember(
+    userId: string,
+    projectId: string,
+    id: string,
+  ): Promise<SavedTaskFilter> {
+    await this.workspaceAccessService.ensureProjectMember(projectId, userId);
 
     const filter = await this.prisma.savedTaskFilter.findFirst({
       where: {
@@ -51,8 +38,8 @@ export class SavedTaskFiltersService {
     userId: string,
     projectId: string,
     createSavedTaskFilterDto: CreateSavedTaskFilterDto,
-  ) {
-    await this.ensureProjectMember(userId, projectId);
+  ): Promise<SavedTaskFilter> {
+    await this.workspaceAccessService.ensureProjectMember(projectId, userId);
 
     return this.prisma.savedTaskFilter.create({
       data: {
@@ -64,8 +51,8 @@ export class SavedTaskFiltersService {
     });
   }
 
-  async findAll(userId: string, projectId: string) {
-    await this.ensureProjectMember(userId, projectId);
+  async findAll(userId: string, projectId: string): Promise<SavedTaskFilter[]> {
+    await this.workspaceAccessService.ensureProjectMember(projectId, userId);
 
     return this.prisma.savedTaskFilter.findMany({
       where: {
@@ -78,7 +65,11 @@ export class SavedTaskFiltersService {
     });
   }
 
-  findOne(userId: string, projectId: string, id: string) {
+  findOne(
+    userId: string,
+    projectId: string,
+    id: string,
+  ): Promise<SavedTaskFilter> {
     return this.findOneByMember(userId, projectId, id);
   }
 
@@ -87,7 +78,7 @@ export class SavedTaskFiltersService {
     projectId: string,
     id: string,
     updateSavedTaskFilterDto: UpdateSavedTaskFilterDto,
-  ) {
+  ): Promise<SavedTaskFilter> {
     await this.findOneByMember(userId, projectId, id);
 
     return this.prisma.savedTaskFilter.update({
@@ -105,7 +96,7 @@ export class SavedTaskFiltersService {
     });
   }
 
-  async remove(userId: string, projectId: string, id: string) {
+  async remove(userId: string, projectId: string, id: string): Promise<void> {
     await this.findOneByMember(userId, projectId, id);
 
     await this.prisma.savedTaskFilter.delete({

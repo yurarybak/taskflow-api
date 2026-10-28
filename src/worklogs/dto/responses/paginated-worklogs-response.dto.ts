@@ -3,7 +3,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { WorklogResponseDto } from './worklog-response.dto';
 import { PaginationMetaResponseDto } from '../../../common/dto/responses/pagination-meta-response.dto';
 
-export class PaginatedTasksResponseDto {
+export class PaginatedWorklogsResponseDto {
   @ApiProperty({
     type: [WorklogResponseDto],
   })

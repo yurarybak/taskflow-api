@@ -12,6 +12,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import type { User } from '../../generated/prisma/client';
 
 type CreateUserInput = {
   email: string;
@@ -26,7 +27,7 @@ export class UsersService {
     private readonly configService: ConfigService,
   ) {}
 
-  private async removeAvatarFromStorage(storageName: string) {
+  private async removeAvatarFromStorage(storageName: string): Promise<void> {
     try {
       const avatarPath = join(process.cwd(), 'uploads', 'avatars', storageName);
 
@@ -34,17 +35,17 @@ export class UsersService {
       await unlink(avatarPath);
     } catch (error) {
       // Log the error but do not throw, since the main operation (like deleting the database record) has already succeeded
-      console.error(`Failed to delete file from storage: ${error}`);
+      console.error(`Failed to delete file from storage: ${String(error)}`);
     }
   }
 
-  private getAvatarUrl(userId: string) {
+  private getAvatarUrl(userId: string): string {
     const appUrl = this.configService.getOrThrow<string>('APP_URL');
 
     return `${appUrl}/users/${userId}/avatar`;
   }
 
-  findByEmail(email: string) {
+  findByEmail(email: string): Promise<User | null> {
     return this.prisma.user.findUnique({
       where: {
         email,
@@ -52,13 +53,13 @@ export class UsersService {
     });
   }
 
-  create(data: CreateUserInput) {
+  create(data: CreateUserInput): Promise<User> {
     return this.prisma.user.create({
       data,
     });
   }
 
-  findById(id: string) {
+  findById(id: string): Promise<User | null> {
     return this.prisma.user.findUnique({
       where: {
         id,
@@ -66,7 +67,7 @@ export class UsersService {
     });
   }
 
-  updateProfile(id: string, updateUserDto: UpdateUserDto) {
+  updateProfile(id: string, updateUserDto: UpdateUserDto): Promise<User> {
     return this.prisma.user.update({
       where: {
         id,
@@ -75,7 +76,10 @@ export class UsersService {
     });
   }
 
-  async changePassword(id: string, changePasswordDto: ChangePasswordDto) {
+  async changePassword(
+    id: string,
+    changePasswordDto: ChangePasswordDto,
+  ): Promise<void> {
     const user = await this.findById(id);
 
     if (!user) {
@@ -123,7 +127,7 @@ export class UsersService {
     ]);
   }
 
-  async uploadAvatar(id: string, file: Express.Multer.File) {
+  async uploadAvatar(id: string, file: Express.Multer.File): Promise<string> {
     const user = await this.prisma.user.findUnique({
       where: {
         id,
@@ -161,7 +165,7 @@ export class UsersService {
     return this.getAvatarUrl(id);
   }
 
-  async removeAvatar(id: string) {
+  async removeAvatar(id: string): Promise<void> {
     const user = await this.prisma.user.findUnique({
       where: {
         id,
@@ -193,7 +197,7 @@ export class UsersService {
     await this.removeAvatarFromStorage(avatarStorageName);
   }
 
-  async findAvatar(id: string) {
+  async findAvatar(id: string): Promise<string> {
     const user = await this.prisma.user.findUnique({
       where: {
         id,

@@ -3,9 +3,14 @@ import { TaskWatchersService } from './task-watchers.service';
 import { TaskWatchersController } from './task-watchers.controller';
 import { TaskActivityModule } from '../task-activity/task-activity.module';
 import { NotificationsQueueModule } from '../queues/notifications-queue/notifications-queue.module';
+import { WorkspaceAccessModule } from '../workspace-access/workspace-access.module';
 
 @Module({
-  imports: [TaskActivityModule, NotificationsQueueModule],
+  imports: [
+    TaskActivityModule,
+    NotificationsQueueModule,
+    WorkspaceAccessModule,
+  ],
   providers: [TaskWatchersService],
   controllers: [TaskWatchersController],
 })

@@ -1,5 +1,8 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { WinstonModule } from 'nest-winston';
 import { BullModule } from '@nestjs/bullmq';
 import { BullBoardModule } from '@bull-board/nestjs';
 import { ExpressAdapter } from '@bull-board/express';
@@ -25,15 +28,27 @@ import { NotificationsQueueModule } from './queues/notifications-queue/notificat
 import { EmailQueueModule } from './queues/email-queue/email-queue.module';
 import { TaskRemindersModule } from './task-reminders/task-reminders.module';
 
-import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
+import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
+import { LoggingMiddleware } from './common/middleware/logging.middleware';
 import { TaskExportsModule } from './task-exports/task-exports.module';
 import { TaskExportQueueModule } from './queues/task-export-queue/task-export-queue.module';
 import { TaskTemplatesModule } from './task-templates/task-templates.module';
 import { RecurringTasksModule } from './recurring-tasks/recurring-tasks.module';
+import { validateEnv } from './config/env.validation';
+import { createWinstonOptions } from './logger/winston.config';
+import { createBullBoardAuthMiddleware } from './queues/config/bull-board-auth.middleware';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
+    WinstonModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) =>
+        createWinstonOptions(
+          configService.get<string>('NODE_ENV') ?? 'development',
+        ),
+    }),
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
@@ -43,9 +58,13 @@ import { RecurringTasksModule } from './recurring-tasks/recurring-tasks.module';
         },
       }),
     }),
-    BullBoardModule.forRoot({
-      route: '/admin/queues',
-      adapter: ExpressAdapter,
+    BullBoardModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        route: '/admin/queues',
+        adapter: ExpressAdapter,
+        middleware: createBullBoardAuthMiddleware(configService),
+      }),
     }),
     PrismaModule,
     UsersModule,
@@ -72,9 +91,11 @@ import { RecurringTasksModule } from './recurring-tasks/recurring-tasks.module';
     TaskTemplatesModule,
     RecurringTasksModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(RequestLoggerMiddleware).forRoutes('*');
+  configure(consumer: MiddlewareConsumer): void {
+    // RequestIdMiddleware must run first: LoggingMiddleware reads req.id.
+    consumer.apply(RequestIdMiddleware, LoggingMiddleware).forRoutes('*');
   }
 }

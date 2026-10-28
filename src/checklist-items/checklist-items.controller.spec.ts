@@ -7,7 +7,9 @@ describe('ChecklistItemsController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ChecklistItemsController],
-    }).compile();
+    })
+      .useMocker(() => ({}))
+      .compile();
 
     controller = module.get<ChecklistItemsController>(ChecklistItemsController);
   });

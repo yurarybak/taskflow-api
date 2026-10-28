@@ -6,42 +6,22 @@ import { TaskActivityType } from '../../generated/prisma/enums';
 import { CreateChecklistItemDto } from './dto/create-checklist-item.dto';
 import { UpdateChecklistItemDto } from './dto/update-checklist-item.dto';
 import { ToggleChecklistItemDto } from './dto/toggle-checklist-item.dto';
+import type { TaskChecklistItem } from '../../generated/prisma/client';
+import { WorkspaceAccessService } from '../workspace-access/workspace-access.service';
 
 @Injectable()
 export class ChecklistItemsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly taskActivityService: TaskActivityService,
+    private readonly workspaceAccessService: WorkspaceAccessService,
   ) {}
-
-  private async ensureTaskMember(taskId: string, userId: string) {
-    const task = await this.prisma.task.findFirst({
-      where: {
-        id: taskId,
-        project: {
-          workspace: {
-            members: {
-              some: {
-                userId,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!task) {
-      throw new NotFoundException('Task not found');
-    }
-
-    return task;
-  }
 
   private async findItemByTaskMember(
     taskId: string,
     itemId: string,
     userId: string,
-  ) {
+  ): Promise<TaskChecklistItem> {
     const item = await this.prisma.taskChecklistItem.findFirst({
       where: {
         id: itemId,
@@ -71,8 +51,11 @@ export class ChecklistItemsService {
     userId: string,
     taskId: string,
     createChecklistItemDto: CreateChecklistItemDto,
-  ) {
-    const task = await this.ensureTaskMember(taskId, userId);
+  ): Promise<TaskChecklistItem> {
+    const task = await this.workspaceAccessService.ensureTaskMember(
+      taskId,
+      userId,
+    );
 
     return this.prisma.$transaction(async (tx) => {
       const item = await tx.taskChecklistItem.create({
@@ -104,7 +87,7 @@ export class ChecklistItemsService {
     taskId: string,
     checklistItemId: string,
     updateChecklistItemDto: UpdateChecklistItemDto,
-  ) {
+  ): Promise<TaskChecklistItem> {
     const item = await this.findItemByTaskMember(
       taskId,
       checklistItemId,
@@ -151,7 +134,7 @@ export class ChecklistItemsService {
     taskId: string,
     checklistItemId: string,
     toggleChecklistItemDto: ToggleChecklistItemDto,
-  ) {
+  ): Promise<TaskChecklistItem> {
     const item = await this.findItemByTaskMember(
       taskId,
       checklistItemId,
@@ -190,7 +173,11 @@ export class ChecklistItemsService {
     });
   }
 
-  async remove(userId: string, taskId: string, checklistItemId: string) {
+  async remove(
+    userId: string,
+    taskId: string,
+    checklistItemId: string,
+  ): Promise<void> {
     const item = await this.findItemByTaskMember(
       taskId,
       checklistItemId,
@@ -219,8 +206,11 @@ export class ChecklistItemsService {
     });
   }
 
-  async findAllByTask(userId: string, taskId: string) {
-    await this.ensureTaskMember(taskId, userId);
+  async findAllByTask(
+    userId: string,
+    taskId: string,
+  ): Promise<TaskChecklistItem[]> {
+    await this.workspaceAccessService.ensureTaskMember(taskId, userId);
 
     return this.prisma.taskChecklistItem.findMany({
       where: {

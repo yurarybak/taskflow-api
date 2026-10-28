@@ -7,7 +7,9 @@ describe('TaskRemindersController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [TaskRemindersController],
-    }).compile();
+    })
+      .useMocker(() => ({}))
+      .compile();
 
     controller = module.get<TaskRemindersController>(TaskRemindersController);
   });

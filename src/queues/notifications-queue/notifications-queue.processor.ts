@@ -11,6 +11,7 @@ import {
 } from './notifications-queue.constants';
 import { CreateNotificationJobPayload } from './types/create-notification-job-payload.type';
 import { SendTaskReminderJobPayload } from './types/send-task-reminder-job-payload.type';
+import type { Notification } from '../../../generated/prisma/client';
 
 @Processor(NOTIFICATIONS_QUEUE)
 @Injectable()
@@ -26,7 +27,7 @@ export class NotificationsQueueProcessor extends WorkerHost {
 
   async process(
     job: Job<CreateNotificationJobPayload | SendTaskReminderJobPayload>,
-  ) {
+  ): Promise<void | Notification> {
     switch (job.name) {
       case NOTIFICATION_JOBS.CREATE_NOTIFICATION:
         return this.notificationsService.create(
@@ -44,17 +45,17 @@ export class NotificationsQueueProcessor extends WorkerHost {
   }
 
   @OnWorkerEvent('active')
-  onActive(job: Job) {
+  onActive(job: Job): void {
     this.logger.log(`Job ${job.id} started: ${job.name}`);
   }
 
   @OnWorkerEvent('completed')
-  onCompleted(job: Job) {
+  onCompleted(job: Job): void {
     this.logger.log(`Job ${job.id} completed: ${job.name}`);
   }
 
   @OnWorkerEvent('failed')
-  onFailed(job: Job, error: Error) {
+  onFailed(job: Job, error: Error): void {
     this.logger.error(`Job ${job.id} failed: ${job.name}`, error.stack);
   }
 }

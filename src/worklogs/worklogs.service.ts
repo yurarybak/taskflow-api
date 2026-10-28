@@ -15,47 +15,22 @@ import { createPaginationMeta } from '../common/utils/create-pagination-meta';
 
 import type { Worklog } from '../../generated/prisma/client';
 import type { PaginatedResponse } from '../common/types/paginated-response.type';
+import type { WorklogWithAuthor } from './types/worklog-with-author.type';
+import { WorkspaceAccessService } from '../workspace-access/workspace-access.service';
 
 @Injectable()
 export class WorklogsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly taskActivityService: TaskActivityService,
+    private readonly workspaceAccessService: WorkspaceAccessService,
   ) {}
-
-  private async ensureTaskWorkspaceMember(
-    userId: string,
-    projectId: string,
-    taskId: string,
-  ) {
-    const task = await this.prisma.task.findFirst({
-      where: {
-        id: taskId,
-        projectId,
-        project: {
-          workspace: {
-            members: {
-              some: {
-                userId,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!task) {
-      throw new NotFoundException('Task was not found');
-    }
-
-    return task;
-  }
 
   private async recalculateTaskTimeSpent(
     taskId: string,
     remainingEstimateMinutes: number | undefined,
     tx: PrismaTransactionClient,
-  ) {
+  ): Promise<void> {
     const result = await tx.worklog.aggregate({
       where: {
         taskId,
@@ -83,8 +58,12 @@ export class WorklogsService {
     projectId: string,
     taskId: string,
     worklogId: string,
-  ) {
-    await this.ensureTaskWorkspaceMember(userId, projectId, taskId);
+  ): Promise<WorklogWithAuthor> {
+    await this.workspaceAccessService.ensureTaskMember(
+      taskId,
+      userId,
+      projectId,
+    );
 
     const worklog = await this.prisma.worklog.findFirst({
       where: {
@@ -102,7 +81,14 @@ export class WorklogsService {
     return worklog;
   }
 
-  private getAuthorInclude() {
+  private getAuthorInclude(): {
+    select: {
+      id: boolean;
+      email: boolean;
+      firstName: boolean;
+      lastName: boolean;
+    };
+  } {
     return {
       select: {
         id: true,
@@ -118,8 +104,12 @@ export class WorklogsService {
     projectId: string,
     taskId: string,
     createWorklogDto: CreateWorklogDto,
-  ) {
-    await this.ensureTaskWorkspaceMember(userId, projectId, taskId);
+  ): Promise<WorklogWithAuthor> {
+    await this.workspaceAccessService.ensureTaskMember(
+      taskId,
+      userId,
+      projectId,
+    );
 
     return this.prisma.$transaction(async (tx) => {
       const worklog = await tx.worklog.create({
@@ -165,7 +155,11 @@ export class WorklogsService {
     taskId: string,
     query: FindWorklogsQueryDto,
   ): Promise<PaginatedResponse<Worklog>> {
-    await this.ensureTaskWorkspaceMember(userId, projectId, taskId);
+    await this.workspaceAccessService.ensureTaskMember(
+      taskId,
+      userId,
+      projectId,
+    );
 
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
@@ -203,7 +197,7 @@ export class WorklogsService {
     projectId: string,
     taskId: string,
     worklogId: string,
-  ) {
+  ): Promise<WorklogWithAuthor> {
     return this.findOneByMember(userId, projectId, taskId, worklogId);
   }
 
@@ -213,7 +207,7 @@ export class WorklogsService {
     taskId: string,
     worklogId: string,
     updateWorklogDto: UpdateWorklogDto,
-  ) {
+  ): Promise<WorklogWithAuthor> {
     const worklog = await this.findOneByMember(
       userId,
       projectId,
@@ -279,7 +273,7 @@ export class WorklogsService {
     projectId: string,
     taskId: string,
     worklogId: string,
-  ) {
+  ): Promise<void> {
     const worklog = await this.findOneByMember(
       userId,
       projectId,

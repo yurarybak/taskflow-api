@@ -36,6 +36,7 @@ export class CreateTaskTemplateDto {
     minLength: 2,
     maxLength: 1000,
   })
+  @IsOptional()
   @IsString()
   @MinLength(2)
   @MaxLength(1000)
@@ -45,6 +46,7 @@ export class CreateTaskTemplateDto {
     example: TaskType.BUG,
     enum: TaskType,
   })
+  @IsOptional()
   @IsEnum(TaskType)
   type?: TaskType;
 
@@ -52,6 +54,7 @@ export class CreateTaskTemplateDto {
     example: TaskPriority.MEDIUM,
     enum: TaskPriority,
   })
+  @IsOptional()
   @IsEnum(TaskPriority)
   priority?: TaskPriority;
 

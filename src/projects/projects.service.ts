@@ -6,34 +6,26 @@ import { FindProjectsQueryDto } from './dto/find-projects-query.dto';
 import { createPaginationMeta } from '../common/utils/create-pagination-meta';
 import { WorkspaceRole } from '../../generated/prisma/enums';
 
-import type { Prisma, Project } from '../../generated/prisma/client';
+import type {
+  Prisma,
+  Project,
+  WorkspaceMember,
+} from '../../generated/prisma/client';
 import type { PaginatedResponse } from '../common/types/paginated-response.type';
+import { WorkspaceAccessService } from '../workspace-access/workspace-access.service';
+
 @Injectable()
 export class ProjectsService {
-  constructor(private readonly prisma: PrismaService) { }
-
-  private async ensureWorkspaceMember(workspaceId: string, userId: string) {
-    const membership = await this.prisma.workspaceMember.findUnique({
-      where: {
-        workspaceId_userId: {
-          workspaceId,
-          userId,
-        },
-      },
-    });
-
-    if (!membership) {
-      throw new NotFoundException('Workspace member not found');
-    }
-
-    return membership;
-  }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly workspaceAccessService: WorkspaceAccessService,
+  ) {}
 
   async create(
     ownerId: string,
     workspaceId: string,
     createProjectDto: CreateProjectDto,
-  ) {
+  ): Promise<Project> {
     await this.ensureWorkspaceRole(workspaceId, ownerId, [
       WorkspaceRole.OWNER,
       WorkspaceRole.ADMIN,
@@ -52,7 +44,10 @@ export class ProjectsService {
     workspaceId: string,
     query: FindProjectsQueryDto,
   ): Promise<PaginatedResponse<Project>> {
-    await this.ensureWorkspaceMember(workspaceId, ownerId);
+    await this.workspaceAccessService.getWorkspaceMembership(
+      workspaceId,
+      ownerId,
+    );
 
     const { page = 1, limit = 10 } = query;
     const skip = (page - 1) * limit;
@@ -61,19 +56,19 @@ export class ProjectsService {
       workspaceId,
       OR: query.search
         ? [
-          {
-            name: {
-              contains: query.search,
-              mode: 'insensitive',
+            {
+              name: {
+                contains: query.search,
+                mode: 'insensitive',
+              },
             },
-          },
-          {
-            description: {
-              contains: query.search,
-              mode: 'insensitive',
+            {
+              description: {
+                contains: query.search,
+                mode: 'insensitive',
+              },
             },
-          },
-        ]
+          ]
         : undefined,
     };
 
@@ -97,7 +92,7 @@ export class ProjectsService {
     };
   }
 
-  async findOneByMember(userId: string, projectId: string) {
+  async findOneByMember(userId: string, projectId: string): Promise<Project> {
     const project = await this.prisma.project.findFirst({
       where: {
         id: projectId,
@@ -122,7 +117,7 @@ export class ProjectsService {
     userId: string,
     projectId: string,
     updateProjectDto: UpdateProjectDto,
-  ) {
+  ): Promise<Project> {
     await this.ensureProjectWorkspaceRole(projectId, userId, [
       WorkspaceRole.OWNER,
       WorkspaceRole.ADMIN,
@@ -136,7 +131,7 @@ export class ProjectsService {
     });
   }
 
-  async remove(userId: string, projectId: string) {
+  async remove(userId: string, projectId: string): Promise<void> {
     await this.ensureProjectWorkspaceRole(projectId, userId, [
       WorkspaceRole.OWNER,
       WorkspaceRole.ADMIN,
@@ -153,8 +148,11 @@ export class ProjectsService {
     workspaceId: string,
     userId: string,
     allowedRoles: WorkspaceRole[],
-  ) {
-    const membership = await this.ensureWorkspaceMember(workspaceId, userId);
+  ): Promise<WorkspaceMember> {
+    const membership = await this.workspaceAccessService.getWorkspaceMembership(
+      workspaceId,
+      userId,
+    );
 
     if (!allowedRoles.includes(membership.role)) {
       throw new NotFoundException('Workspace not found');
@@ -167,7 +165,7 @@ export class ProjectsService {
     projectId: string,
     userId: string,
     allowedRoles: WorkspaceRole[],
-  ) {
+  ): Promise<Project> {
     const project = await this.prisma.project.findFirst({
       where: {
         id: projectId,

@@ -15,7 +15,7 @@ export class EmailQueueService {
 
   async addSendPasswordResetEmailJob(
     payload: SendPasswordResetEmailJobPayload,
-  ) {
+  ): Promise<void> {
     await this.emailQueue.add(EMAIL_JOBS.SEND_PASSWORD_RESET_EMAIL, payload, {
       ...defaultJobOptions,
       backoff: {

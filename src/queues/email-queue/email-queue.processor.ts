@@ -7,6 +7,8 @@ import { EmailService } from '../../email/email.service';
 import { EMAIL_JOBS, EMAIL_QUEUE } from './email-queue.constants';
 import { SendPasswordResetEmailJobPayload } from './types/send-password-reset-email-job-payload.type';
 
+import type { EmailDeliveryResult } from '../../email/types/email-delivery.type';
+
 @Processor(EMAIL_QUEUE)
 @Injectable()
 export class EmailQueueProcessor extends WorkerHost {
@@ -16,7 +18,9 @@ export class EmailQueueProcessor extends WorkerHost {
 
   private readonly logger = new Logger(EmailQueueProcessor.name);
 
-  async process(job: Job<SendPasswordResetEmailJobPayload>) {
+  async process(
+    job: Job<SendPasswordResetEmailJobPayload>,
+  ): Promise<EmailDeliveryResult> {
     switch (job.name) {
       case EMAIL_JOBS.SEND_PASSWORD_RESET_EMAIL:
         return this.emailService.sendPasswordResetEmail(
@@ -31,17 +35,17 @@ export class EmailQueueProcessor extends WorkerHost {
   }
 
   @OnWorkerEvent('active')
-  onActive(job: Job) {
+  onActive(job: Job): void {
     this.logger.log(`Job ${job.id} started: ${job.name}`);
   }
 
   @OnWorkerEvent('completed')
-  onCompleted(job: Job) {
+  onCompleted(job: Job): void {
     this.logger.log(`Job ${job.id} completed: ${job.name}`);
   }
 
   @OnWorkerEvent('failed')
-  onFailed(job: Job, error: Error) {
+  onFailed(job: Job, error: Error): void {
     this.logger.error(`Job ${job.id} failed: ${job.name}`, error.stack);
   }
 }

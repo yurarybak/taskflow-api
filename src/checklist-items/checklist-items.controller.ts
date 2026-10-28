@@ -7,6 +7,7 @@ import {
   Patch,
   Get,
   Delete,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -15,6 +16,7 @@ import {
   ApiOperation,
   ApiUnauthorizedResponse,
   ApiNotFoundResponse,
+  ApiTags,
 } from '@nestjs/swagger';
 
 import { ChecklistItemsService } from './checklist-items.service';
@@ -27,7 +29,9 @@ import { ChecklistItemResponseDto } from './dto/responses/checklist-item-respons
 import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
 
 import type { CurrentUser } from '../auth/types/current-user.type';
+import type { TaskChecklistItem } from '../../generated/prisma/client';
 
+@ApiTags('Task checklist items')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('tasks/:taskId/checklist-items')
@@ -48,9 +52,9 @@ export class ChecklistItemsController {
   @Post()
   create(
     @GetCurrentUser() user: CurrentUser,
-    @Param('taskId') taskId: string,
+    @Param('taskId', ParseUUIDPipe) taskId: string,
     @Body() createChecklistItemDto: CreateChecklistItemDto,
-  ) {
+  ): Promise<TaskChecklistItem> {
     return this.checklistItemsService.create(
       user.id,
       taskId,
@@ -72,10 +76,10 @@ export class ChecklistItemsController {
   @Patch('/:id')
   update(
     @GetCurrentUser() user: CurrentUser,
-    @Param('taskId') taskId: string,
-    @Param('id') checklistItemId: string,
+    @Param('taskId', ParseUUIDPipe) taskId: string,
+    @Param('id', ParseUUIDPipe) checklistItemId: string,
     @Body() updateChecklistItemDto: UpdateChecklistItemDto,
-  ) {
+  ): Promise<TaskChecklistItem> {
     return this.checklistItemsService.update(
       user.id,
       taskId,
@@ -98,10 +102,10 @@ export class ChecklistItemsController {
   @Patch('/:id/toggle')
   toggle(
     @GetCurrentUser() user: CurrentUser,
-    @Param('taskId') taskId: string,
-    @Param('id') checklistItemId: string,
+    @Param('taskId', ParseUUIDPipe) taskId: string,
+    @Param('id', ParseUUIDPipe) checklistItemId: string,
     @Body() toggleChecklistItemDto: ToggleChecklistItemDto,
-  ) {
+  ): Promise<TaskChecklistItem> {
     return this.checklistItemsService.toggle(
       user.id,
       taskId,
@@ -124,9 +128,9 @@ export class ChecklistItemsController {
   @Delete('/:id')
   async remove(
     @GetCurrentUser() user: CurrentUser,
-    @Param('taskId') taskId: string,
-    @Param('id') checklistItemId: string,
-  ) {
+    @Param('taskId', ParseUUIDPipe) taskId: string,
+    @Param('id', ParseUUIDPipe) checklistItemId: string,
+  ): Promise<{ success: boolean }> {
     await this.checklistItemsService.remove(user.id, taskId, checklistItemId);
 
     return {
@@ -148,8 +152,8 @@ export class ChecklistItemsController {
   @Get()
   findAll(
     @GetCurrentUser() user: CurrentUser,
-    @Param('taskId') taskId: string,
-  ) {
+    @Param('taskId', ParseUUIDPipe) taskId: string,
+  ): Promise<TaskChecklistItem[]> {
     return this.checklistItemsService.findAllByTask(user.id, taskId);
   }
 }

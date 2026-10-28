@@ -5,6 +5,7 @@ import {
   ApiOperation,
   ApiUnauthorizedResponse,
   ApiNotFoundResponse,
+  ApiTags,
 } from '@nestjs/swagger';
 import {
   Body,
@@ -15,6 +16,7 @@ import {
   Param,
   Patch,
   Delete,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 
 import type { CurrentUser } from '../auth/types/current-user.type';
@@ -30,7 +32,10 @@ import { PaginatedWorkspacesResponseDto } from './dto/responses/paginated-worksp
 import { WorkspaceResponseDto } from './dto/responses/workspace-response.dto';
 import { WorkspaceMemberResponseDto } from './dto/responses/workspace-member-response.dto';
 import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
+import type { Workspace } from '../../generated/prisma/client';
+import type { WorkspaceMemberWithUser } from './types/workspace-member-with-user.type';
 
+@ApiTags('Workspaces')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('workspaces')
@@ -47,7 +52,7 @@ export class WorkspacesController {
   createWorkspace(
     @GetCurrentUser() user: CurrentUser,
     @Body() createWorkspaceDto: CreateWorkspaceDto,
-  ) {
+  ): Promise<Workspace> {
     return this.workspacesService.create(user.id, createWorkspaceDto);
   }
 
@@ -60,7 +65,7 @@ export class WorkspacesController {
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   @Get()
-  findAll(@GetCurrentUser() user: CurrentUser) {
+  findAll(@GetCurrentUser() user: CurrentUser): Promise<Workspace[]> {
     return this.workspacesService.findAllByOwner(user.id);
   }
 
@@ -74,8 +79,8 @@ export class WorkspacesController {
   @Get(':id/members')
   findMembers(
     @GetCurrentUser() user: CurrentUser,
-    @Param('id') workspaceId: string,
-  ) {
+    @Param('id', ParseUUIDPipe) workspaceId: string,
+  ): Promise<WorkspaceMemberWithUser[]> {
     return this.workspacesService.findMembers(user.id, workspaceId);
   }
 
@@ -89,9 +94,9 @@ export class WorkspacesController {
   @Post(':id/members')
   addMember(
     @GetCurrentUser() user: CurrentUser,
-    @Param('id') workspaceId: string,
+    @Param('id', ParseUUIDPipe) workspaceId: string,
     @Body() addWorkspaceMemberDto: AddWorkspaceMemberDto,
-  ) {
+  ): Promise<WorkspaceMemberWithUser> {
     return this.workspacesService.addMember(
       user.id,
       workspaceId,
@@ -109,10 +114,10 @@ export class WorkspacesController {
   @Patch(':id/members/:memberId')
   updateMember(
     @GetCurrentUser() user: CurrentUser,
-    @Param('id') workspaceId: string,
-    @Param('memberId') memberId: string,
+    @Param('id', ParseUUIDPipe) workspaceId: string,
+    @Param('memberId', ParseUUIDPipe) memberId: string,
     @Body() updateWorkspaceMemberDto: UpdateWorkspaceMemberDto,
-  ) {
+  ): Promise<WorkspaceMemberWithUser> {
     return this.workspacesService.updateMember(
       user.id,
       workspaceId,
@@ -131,9 +136,9 @@ export class WorkspacesController {
   @Delete(':id/members/:memberId')
   async removeMember(
     @GetCurrentUser() user: CurrentUser,
-    @Param('id') workspaceId: string,
-    @Param('memberId') memberId: string,
-  ) {
+    @Param('id', ParseUUIDPipe) workspaceId: string,
+    @Param('memberId', ParseUUIDPipe) memberId: string,
+  ): Promise<{ success: boolean }> {
     await this.workspacesService.removeMember(user.id, workspaceId, memberId);
 
     return {
@@ -151,8 +156,8 @@ export class WorkspacesController {
   @Get(':id')
   findOne(
     @GetCurrentUser() user: CurrentUser,
-    @Param('id') workspaceId: string,
-  ) {
+    @Param('id', ParseUUIDPipe) workspaceId: string,
+  ): Promise<Workspace> {
     return this.workspacesService.findOneByOwner(user.id, workspaceId);
   }
 
@@ -166,9 +171,9 @@ export class WorkspacesController {
   @Patch(':id')
   update(
     @GetCurrentUser() user: CurrentUser,
-    @Param('id') workspaceId: string,
+    @Param('id', ParseUUIDPipe) workspaceId: string,
     @Body() updateWorkspaceDto: UpdateWorkspaceDto,
-  ) {
+  ): Promise<Workspace> {
     return this.workspacesService.update(
       user.id,
       workspaceId,
@@ -186,8 +191,8 @@ export class WorkspacesController {
   @Delete(':id')
   async remove(
     @GetCurrentUser() user: CurrentUser,
-    @Param('id') workspaceId: string,
-  ) {
+    @Param('id', ParseUUIDPipe) workspaceId: string,
+  ): Promise<{ success: boolean }> {
     await this.workspacesService.remove(user.id, workspaceId);
 
     return {

@@ -19,7 +19,7 @@ export class TaskExportQueueService {
   async addExportProjectTasksCsvJob(
     payload: ExportProjectTasksCsvJobPayload,
     jobId: string,
-  ) {
+  ): Promise<void> {
     await this.taskExportQueue.add(
       TASK_EXPORT_JOBS.EXPORT_PROJECT_TASKS_CSV,
       payload,
@@ -30,7 +30,7 @@ export class TaskExportQueueService {
     );
   }
 
-  async removeJob(jobId: string) {
+  async removeJob(jobId: string): Promise<void> {
     const job = await this.taskExportQueue.getJob(jobId);
 
     if (!job) {

@@ -5,32 +5,18 @@ import { CreateTaskTemplateDto } from './dto/create-task-template.dto';
 import { UpdateTaskTemplateDto } from './dto/update-task-template.dto';
 import { FindTaskTemplatesQueryDto } from './dto/find-task-templates-query.dto';
 import { BulkDeleteDto } from './dto/bulk-delete.dto';
-import { Prisma } from '../../generated/prisma/client';
+import { Prisma, type TaskTemplate } from '../../generated/prisma/client';
+import type { TaskTemplateWithLabels } from './types/task-template-with-labels.type';
+import { WorkspaceAccessService } from '../workspace-access/workspace-access.service';
 
 @Injectable()
 export class TaskTemplatesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly workspaceAccessService: WorkspaceAccessService,
+  ) {}
 
-  private async ensureWorkspaceMember(userId: string, workspaceId: string) {
-    const workspace = await this.prisma.workspace.findFirst({
-      where: {
-        id: workspaceId,
-        members: {
-          some: {
-            userId,
-          },
-        },
-      },
-    });
-
-    if (!workspace) {
-      throw new NotFoundException('Workspace was not found');
-    }
-
-    return workspace;
-  }
-
-  private async findOneById(id: string) {
+  private async findOneById(id: string): Promise<TaskTemplateWithLabels> {
     const taskTemplate = await this.prisma.taskTemplate.findFirst({
       where: {
         id,
@@ -50,7 +36,7 @@ export class TaskTemplatesService {
   private async ensureLabelsBelongToWorkspace(
     workspaceId: string,
     labelIds: string[] = [],
-  ) {
+  ): Promise<void> {
     if (!labelIds.length) {
       return;
     }
@@ -75,8 +61,11 @@ export class TaskTemplatesService {
     userId: string,
     workspaceId: string,
     createTaskTemplateDto: CreateTaskTemplateDto,
-  ) {
-    await this.ensureWorkspaceMember(userId, workspaceId);
+  ): Promise<TaskTemplate> {
+    await this.workspaceAccessService.ensureWorkspaceMember(
+      workspaceId,
+      userId,
+    );
 
     await this.ensureLabelsBelongToWorkspace(
       workspaceId,
@@ -104,8 +93,11 @@ export class TaskTemplatesService {
     userId: string,
     workspaceId: string,
     query: FindTaskTemplatesQueryDto,
-  ) {
-    await this.ensureWorkspaceMember(userId, workspaceId);
+  ): Promise<TaskTemplateWithLabels[]> {
+    await this.workspaceAccessService.ensureWorkspaceMember(
+      workspaceId,
+      userId,
+    );
 
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
@@ -148,8 +140,15 @@ export class TaskTemplatesService {
     });
   }
 
-  async findOne(userId: string, workspaceId: string, id: string) {
-    await this.ensureWorkspaceMember(userId, workspaceId);
+  async findOne(
+    userId: string,
+    workspaceId: string,
+    id: string,
+  ): Promise<TaskTemplateWithLabels> {
+    await this.workspaceAccessService.ensureWorkspaceMember(
+      workspaceId,
+      userId,
+    );
 
     return this.findOneById(id);
   }
@@ -159,8 +158,11 @@ export class TaskTemplatesService {
     workspaceId: string,
     id: string,
     updateTaskTemplateDto: UpdateTaskTemplateDto,
-  ) {
-    await this.ensureWorkspaceMember(userId, workspaceId);
+  ): Promise<TaskTemplateWithLabels> {
+    await this.workspaceAccessService.ensureWorkspaceMember(
+      workspaceId,
+      userId,
+    );
 
     await this.findOneById(id);
 
@@ -193,8 +195,11 @@ export class TaskTemplatesService {
     });
   }
 
-  async remove(userId: string, workspaceId: string, id: string) {
-    await this.ensureWorkspaceMember(userId, workspaceId);
+  async remove(userId: string, workspaceId: string, id: string): Promise<void> {
+    await this.workspaceAccessService.ensureWorkspaceMember(
+      workspaceId,
+      userId,
+    );
 
     await this.findOneById(id);
 
@@ -205,8 +210,15 @@ export class TaskTemplatesService {
     });
   }
 
-  async duplicate(userId: string, workspaceId: string, id: string) {
-    await this.ensureWorkspaceMember(userId, workspaceId);
+  async duplicate(
+    userId: string,
+    workspaceId: string,
+    id: string,
+  ): Promise<TaskTemplateWithLabels> {
+    await this.workspaceAccessService.ensureWorkspaceMember(
+      workspaceId,
+      userId,
+    );
 
     const template = await this.findOneById(id);
 
@@ -236,8 +248,11 @@ export class TaskTemplatesService {
     userId: string,
     workspaceId: string,
     bulkDeleteDto: BulkDeleteDto,
-  ) {
-    await this.ensureWorkspaceMember(userId, workspaceId);
+  ): Promise<void> {
+    await this.workspaceAccessService.ensureWorkspaceMember(
+      workspaceId,
+      userId,
+    );
 
     await this.prisma.taskTemplate.deleteMany({
       where: {

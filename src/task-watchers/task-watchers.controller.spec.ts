@@ -7,7 +7,9 @@ describe('TaskWatchersController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [TaskWatchersController],
-    }).compile();
+    })
+      .useMocker(() => ({}))
+      .compile();
 
     controller = module.get<TaskWatchersController>(TaskWatchersController);
   });

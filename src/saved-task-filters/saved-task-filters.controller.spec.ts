@@ -7,9 +7,13 @@ describe('SavedTaskFiltersController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [SavedTaskFiltersController],
-    }).compile();
+    })
+      .useMocker(() => ({}))
+      .compile();
 
-    controller = module.get<SavedTaskFiltersController>(SavedTaskFiltersController);
+    controller = module.get<SavedTaskFiltersController>(
+      SavedTaskFiltersController,
+    );
   });
 
   it('should be defined', () => {

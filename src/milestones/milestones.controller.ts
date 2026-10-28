@@ -7,6 +7,7 @@ import {
   Delete,
   Param,
   Body,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -17,6 +18,7 @@ import {
   ApiConflictResponse,
   ApiBadRequestResponse,
   ApiOkResponse,
+  ApiTags,
 } from '@nestjs/swagger';
 import { MilestonesService } from './milestones.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -27,6 +29,7 @@ import { MilestoneResponseDto } from './dto/responses/milestone-response.dto';
 import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
 
 import type { CurrentUser } from '../auth/types/current-user.type';
+import type { Milestone } from '../../generated/prisma/client';
 
 // TODO:
 // POST   /projects/:projectId/milestones
@@ -37,6 +40,7 @@ import type { CurrentUser } from '../auth/types/current-user.type';
 // PATCH  /projects/:projectId/milestones/:id/complete
 // PATCH  /projects/:projectId/milestones/:id/reopen
 
+@ApiTags('Milestones')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('/projects/:projectId/milestones')
@@ -63,9 +67,9 @@ export class MilestonesController {
   @Post()
   create(
     @GetCurrentUser() user: CurrentUser,
-    @Param('projectId') projectId: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
     @Body() createMilestoneDto: CreateMilestoneDto,
-  ) {
+  ): Promise<Milestone> {
     return this.milestonesService.create(
       user.id,
       projectId,
@@ -87,8 +91,8 @@ export class MilestonesController {
   @Get()
   findAll(
     @GetCurrentUser() user: CurrentUser,
-    @Param('projectId') projectId: string,
-  ) {
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+  ): Promise<Milestone[]> {
     return this.milestonesService.findAll(user.id, projectId);
   }
 
@@ -106,9 +110,9 @@ export class MilestonesController {
   @Get('/:id')
   findOne(
     @GetCurrentUser() user: CurrentUser,
-    @Param('projectId') projectId: string,
-    @Param('id') milestoneId: string,
-  ) {
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('id', ParseUUIDPipe) milestoneId: string,
+  ): Promise<Milestone> {
     return this.milestonesService.findOne(user.id, projectId, milestoneId);
   }
 
@@ -129,10 +133,10 @@ export class MilestonesController {
   @Patch('/:id')
   update(
     @GetCurrentUser() user: CurrentUser,
-    @Param('projectId') projectId: string,
-    @Param('id') milestoneId: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('id', ParseUUIDPipe) milestoneId: string,
     @Body() updateMilestoneDto: UpdateMilestoneDto,
-  ) {
+  ): Promise<Milestone> {
     return this.milestonesService.update(
       user.id,
       projectId,
@@ -155,9 +159,9 @@ export class MilestonesController {
   @Delete('/:id')
   async remove(
     @GetCurrentUser() user: CurrentUser,
-    @Param('projectId') projectId: string,
-    @Param('id') milestoneId: string,
-  ) {
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('id', ParseUUIDPipe) milestoneId: string,
+  ): Promise<{ success: boolean }> {
     await this.milestonesService.remove(user.id, projectId, milestoneId);
 
     return {
@@ -179,9 +183,9 @@ export class MilestonesController {
   @Patch('/:id/complete')
   async complete(
     @GetCurrentUser() user: CurrentUser,
-    @Param('projectId') projectId: string,
-    @Param('id') milestoneId: string,
-  ) {
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('id', ParseUUIDPipe) milestoneId: string,
+  ): Promise<{ success: boolean }> {
     await this.milestonesService.complete(user.id, projectId, milestoneId);
 
     return {
@@ -203,9 +207,9 @@ export class MilestonesController {
   @Patch('/:id/reopen')
   async reopen(
     @GetCurrentUser() user: CurrentUser,
-    @Param('projectId') projectId: string,
-    @Param('id') milestoneId: string,
-  ) {
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('id', ParseUUIDPipe) milestoneId: string,
+  ): Promise<{ success: boolean }> {
     await this.milestonesService.reopen(user.id, projectId, milestoneId);
 
     return {

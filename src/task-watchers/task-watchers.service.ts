@@ -10,6 +10,9 @@ import {
   TaskActivityType,
   NotificationType,
 } from '../../generated/prisma/enums';
+import type { TaskWatcher, User } from '../../generated/prisma/client';
+import type { TaskWatcherWithUser } from './types/task-watcher-with-user.type';
+import { WorkspaceAccessService } from '../workspace-access/workspace-access.service';
 
 @Injectable()
 export class TaskWatchersService {
@@ -17,32 +20,13 @@ export class TaskWatchersService {
     private readonly prisma: PrismaService,
     private readonly taskActivityService: TaskActivityService,
     private readonly notificationsQueueService: NotificationsQueueService,
+    private readonly workspaceAccessService: WorkspaceAccessService,
   ) {}
 
-  private async ensureUserCanAccessTask(taskId: string, userId: string) {
-    const task = await this.prisma.task.findFirst({
-      where: {
-        id: taskId,
-        project: {
-          workspace: {
-            members: {
-              some: {
-                userId,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!task) {
-      throw new NotFoundException('Task not found');
-    }
-
-    return task;
-  }
-
-  private findWatcher(taskId: string, userId: string) {
+  private findWatcher(
+    taskId: string,
+    userId: string,
+  ): Promise<TaskWatcher | null> {
     return this.prisma.taskWatcher.findUnique({
       where: {
         taskId_userId: {
@@ -53,8 +37,13 @@ export class TaskWatchersService {
     });
   }
 
-  async findAllByTask(userId: string, taskId: string) {
-    await this.ensureUserCanAccessTask(taskId, userId);
+  async findAllByTask(
+    userId: string,
+    taskId: string,
+  ): Promise<
+    (TaskWatcher & { user: Pick<User, 'id' | 'firstName' | 'lastName'> })[]
+  > {
+    await this.workspaceAccessService.ensureTaskMember(taskId, userId);
 
     return this.prisma.taskWatcher.findMany({
       where: {
@@ -83,7 +72,7 @@ export class TaskWatchersService {
       title: string;
       projectId: string;
     },
-  ) {
+  ): Promise<void> {
     if (userId === watcherId) {
       return;
     }
@@ -100,10 +89,14 @@ export class TaskWatchersService {
     });
   }
 
-  async addWatcher(actorId: string, taskId: string, watcherUserId: string) {
+  async addWatcher(
+    actorId: string,
+    taskId: string,
+    watcherUserId: string,
+  ): Promise<TaskWatcherWithUser> {
     const [task] = await Promise.all([
-      this.ensureUserCanAccessTask(taskId, actorId),
-      this.ensureUserCanAccessTask(taskId, watcherUserId),
+      this.workspaceAccessService.ensureTaskMember(taskId, actorId),
+      this.workspaceAccessService.ensureTaskMember(taskId, watcherUserId),
     ]);
 
     const existingWatcher = await this.findWatcher(taskId, watcherUserId);
@@ -148,10 +141,14 @@ export class TaskWatchersService {
     });
   }
 
-  async removeWatcher(actorId: string, taskId: string, watcherUserId: string) {
+  async removeWatcher(
+    actorId: string,
+    taskId: string,
+    watcherUserId: string,
+  ): Promise<void> {
     await Promise.all([
-      this.ensureUserCanAccessTask(taskId, actorId),
-      this.ensureUserCanAccessTask(taskId, watcherUserId),
+      this.workspaceAccessService.ensureTaskMember(taskId, actorId),
+      this.workspaceAccessService.ensureTaskMember(taskId, watcherUserId),
     ]);
 
     const existingWatcher = await this.findWatcher(taskId, watcherUserId);
@@ -184,11 +181,11 @@ export class TaskWatchersService {
     });
   }
 
-  addMe(actorId: string, taskId: string) {
+  addMe(actorId: string, taskId: string): Promise<TaskWatcherWithUser> {
     return this.addWatcher(actorId, taskId, actorId);
   }
 
-  removeMe(actorId: string, taskId: string) {
+  removeMe(actorId: string, taskId: string): Promise<void> {
     return this.removeWatcher(actorId, taskId, actorId);
   }
 }

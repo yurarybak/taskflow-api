@@ -21,7 +21,9 @@ export class NotificationsQueueService {
     private readonly notificationsQueue: Queue<NotificationsQueuePayload>,
   ) {}
 
-  async addCreateNotificationJob(payload: CreateNotificationJobPayload) {
+  async addCreateNotificationJob(
+    payload: CreateNotificationJobPayload,
+  ): Promise<void> {
     await this.notificationsQueue.add(
       NOTIFICATION_JOBS.CREATE_NOTIFICATION,
       payload,
@@ -33,7 +35,7 @@ export class NotificationsQueueService {
     payload: SendTaskReminderJobPayload,
     remindAt: Date,
     jobId: string,
-  ) {
+  ): Promise<void> {
     const delay = remindAt.getTime() - Date.now();
 
     await this.notificationsQueue.add(
@@ -47,7 +49,7 @@ export class NotificationsQueueService {
     );
   }
 
-  async removeJob(jobId: string) {
+  async removeJob(jobId: string): Promise<void> {
     const job = await this.notificationsQueue.getJob(jobId);
 
     if (!job) {

@@ -6,38 +6,22 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMilestoneDto } from './dto/create-milestone.dto';
 import { UpdateMilestoneDto } from './dto/update-milestone.dto';
+import type { Milestone } from '../../generated/prisma/client';
+import { WorkspaceAccessService } from '../workspace-access/workspace-access.service';
 
 @Injectable()
 export class MilestonesService {
-  constructor(private readonly prisma: PrismaService) {}
-
-  private async ensureProjectMember(userId: string, projectId: string) {
-    const project = await this.prisma.project.findFirst({
-      where: {
-        id: projectId,
-        workspace: {
-          members: {
-            some: {
-              userId,
-            },
-          },
-        },
-      },
-    });
-
-    if (!project) {
-      throw new NotFoundException('Project was not found');
-    }
-
-    return project;
-  }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly workspaceAccessService: WorkspaceAccessService,
+  ) {}
 
   private async findOneByMember(
     userId: string,
     projectId: string,
     milestoneId: string,
-  ) {
-    await this.ensureProjectMember(userId, projectId);
+  ): Promise<Milestone> {
+    await this.workspaceAccessService.ensureProjectMember(projectId, userId);
 
     const milestone = await this.prisma.milestone.findFirst({
       where: {
@@ -55,7 +39,7 @@ export class MilestonesService {
   private validateMilestoneDates(
     startDate?: string | Date | null,
     dueDate?: string | Date | null,
-  ) {
+  ): void {
     if (!startDate || !dueDate) {
       return;
     }
@@ -69,8 +53,8 @@ export class MilestonesService {
     userId: string,
     projectId: string,
     createMilestoneDto: CreateMilestoneDto,
-  ) {
-    await this.ensureProjectMember(userId, projectId);
+  ): Promise<Milestone> {
+    await this.workspaceAccessService.ensureProjectMember(projectId, userId);
 
     this.validateMilestoneDates(
       createMilestoneDto.startDate,
@@ -87,8 +71,8 @@ export class MilestonesService {
     return milestone;
   }
 
-  async findAll(userId: string, projectId: string) {
-    await this.ensureProjectMember(userId, projectId);
+  async findAll(userId: string, projectId: string): Promise<Milestone[]> {
+    await this.workspaceAccessService.ensureProjectMember(projectId, userId);
 
     return this.prisma.milestone.findMany({
       where: {
@@ -100,7 +84,11 @@ export class MilestonesService {
     });
   }
 
-  async findOne(userId: string, projectId: string, milestoneId: string) {
+  async findOne(
+    userId: string,
+    projectId: string,
+    milestoneId: string,
+  ): Promise<Milestone> {
     return this.findOneByMember(userId, projectId, milestoneId);
   }
 
@@ -109,8 +97,8 @@ export class MilestonesService {
     projectId: string,
     milestoneId: string,
     updateMilestoneDto: UpdateMilestoneDto,
-  ) {
-    await this.ensureProjectMember(userId, projectId);
+  ): Promise<Milestone> {
+    await this.workspaceAccessService.ensureProjectMember(projectId, userId);
     const milestone = await this.findOneByMember(
       userId,
       projectId,
@@ -137,8 +125,12 @@ export class MilestonesService {
     });
   }
 
-  async remove(userId: string, projectId: string, milestoneId: string) {
-    await this.ensureProjectMember(userId, projectId);
+  async remove(
+    userId: string,
+    projectId: string,
+    milestoneId: string,
+  ): Promise<void> {
+    await this.workspaceAccessService.ensureProjectMember(projectId, userId);
 
     await this.prisma.milestone.delete({
       where: {
@@ -147,8 +139,12 @@ export class MilestonesService {
     });
   }
 
-  async complete(userId: string, projectId: string, milestoneId: string) {
-    await this.ensureProjectMember(userId, projectId);
+  async complete(
+    userId: string,
+    projectId: string,
+    milestoneId: string,
+  ): Promise<void> {
+    await this.workspaceAccessService.ensureProjectMember(projectId, userId);
 
     await this.prisma.milestone.update({
       where: {
@@ -160,8 +156,12 @@ export class MilestonesService {
     });
   }
 
-  async reopen(userId: string, projectId: string, milestoneId: string) {
-    await this.ensureProjectMember(userId, projectId);
+  async reopen(
+    userId: string,
+    projectId: string,
+    milestoneId: string,
+  ): Promise<void> {
+    await this.workspaceAccessService.ensureProjectMember(projectId, userId);
 
     await this.prisma.milestone.update({
       where: {

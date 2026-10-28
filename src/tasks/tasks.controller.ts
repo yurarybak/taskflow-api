@@ -6,6 +6,7 @@ import {
   ApiOperation,
   ApiUnauthorizedResponse,
   ApiNotFoundResponse,
+  ApiTags,
 } from '@nestjs/swagger';
 import {
   Controller,
@@ -17,6 +18,9 @@ import {
   Get,
   Delete,
   Query,
+  ParseUUIDPipe,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -33,7 +37,14 @@ import { AssignTaskDto } from './dto/assign-task.dto';
 import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
 import { SetTaskMilestoneDto } from './dto/set-task-milestone.dto';
 import { CreateTaskFromTemplateDto } from './dto/create-task-from-template.dto';
+import type { Task } from '../../generated/prisma/client';
+import type { PaginatedResponse } from '../common/types/paginated-response.type';
+import type {
+  TaskWithLabels,
+  TaskWithLabelsAndPeople,
+} from './types/task-with-relations.type';
 
+@ApiTags('Tasks')
 @ApiBearerAuth()
 @Controller('projects/:projectId/tasks')
 @UseGuards(JwtAuthGuard)
@@ -51,9 +62,9 @@ export class TasksController {
   @Post()
   create(
     @GetCurrentUser() user: CurrentUser,
-    @Param('projectId') projectId: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
     @Body() createTaskDto: CreateTaskDto,
-  ) {
+  ): Promise<Task> {
     return this.tasksService.create(user.id, projectId, createTaskDto);
   }
 
@@ -70,10 +81,10 @@ export class TasksController {
   @Patch(':taskId')
   update(
     @GetCurrentUser() user: CurrentUser,
-    @Param('projectId') projectId: string,
-    @Param('taskId') taskId: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('taskId', ParseUUIDPipe) taskId: string,
     @Body() updateTaskDto: UpdateTaskDto,
-  ) {
+  ): Promise<Task> {
     return this.tasksService.update(user.id, projectId, taskId, updateTaskDto);
   }
 
@@ -89,9 +100,9 @@ export class TasksController {
   @Get()
   findAll(
     @GetCurrentUser() user: CurrentUser,
-    @Param('projectId') projectId: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
     @Query() query: FindTasksQueryDto,
-  ) {
+  ): Promise<PaginatedResponse<Task>> {
     return this.tasksService.findAllByProject(user.id, projectId, query);
   }
 
@@ -107,8 +118,8 @@ export class TasksController {
   @Get(':taskId')
   findOne(
     @GetCurrentUser() user: CurrentUser,
-    @Param('taskId') taskId: string,
-  ) {
+    @Param('taskId', ParseUUIDPipe) taskId: string,
+  ): Promise<Task | null> {
     return this.tasksService.findOneByMember(user.id, taskId);
   }
 
@@ -125,8 +136,8 @@ export class TasksController {
   @Delete(':taskId')
   async remove(
     @GetCurrentUser() user: CurrentUser,
-    @Param('taskId') taskId: string,
-  ) {
+    @Param('taskId', ParseUUIDPipe) taskId: string,
+  ): Promise<{ success: boolean }> {
     await this.tasksService.remove(user.id, taskId);
 
     return {
@@ -147,10 +158,10 @@ export class TasksController {
   @Patch(':id/assign')
   assign(
     @GetCurrentUser() user: CurrentUser,
-    @Param('projectId') projectId: string,
-    @Param('id') taskId: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('id', ParseUUIDPipe) taskId: string,
     @Body() assignTaskDto: AssignTaskDto,
-  ) {
+  ): Promise<Task> {
     return this.tasksService.assign(
       user.id,
       projectId,
@@ -170,12 +181,13 @@ export class TasksController {
   @ApiNotFoundResponse({
     description: 'Task or label not found',
   })
+  @HttpCode(HttpStatus.OK)
   @Post(':id/labels/:labelId')
   attachLabel(
     @GetCurrentUser() user: CurrentUser,
-    @Param('id') id: string,
-    @Param('labelId') labelId: string,
-  ) {
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('labelId', ParseUUIDPipe) labelId: string,
+  ): Promise<TaskWithLabels> {
     return this.tasksService.attachLabel(id, labelId, user.id);
   }
 
@@ -193,9 +205,9 @@ export class TasksController {
   @Delete(':id/labels/:labelId')
   detachLabel(
     @GetCurrentUser() user: CurrentUser,
-    @Param('id') id: string,
-    @Param('labelId') labelId: string,
-  ) {
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('labelId', ParseUUIDPipe) labelId: string,
+  ): Promise<Task> {
     return this.tasksService.detachLabel(id, labelId, user.id);
   }
 
@@ -211,7 +223,10 @@ export class TasksController {
     description: 'Task not found',
   })
   @Patch(':id/archive')
-  archive(@GetCurrentUser() user: CurrentUser, @Param('id') id: string) {
+  archive(
+    @GetCurrentUser() user: CurrentUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<TaskWithLabels> {
     return this.tasksService.archive(user.id, id);
   }
 
@@ -227,7 +242,10 @@ export class TasksController {
     description: 'Task not found',
   })
   @Patch(':id/unarchive')
-  unarchive(@GetCurrentUser() user: CurrentUser, @Param('id') id: string) {
+  unarchive(
+    @GetCurrentUser() user: CurrentUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<TaskWithLabels> {
     return this.tasksService.unarchive(user.id, id);
   }
 
@@ -245,7 +263,10 @@ export class TasksController {
     description: 'Task not found',
   })
   @Patch(':id/flag')
-  flag(@GetCurrentUser() user: CurrentUser, @Param('id') id: string) {
+  flag(
+    @GetCurrentUser() user: CurrentUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<TaskWithLabels> {
     return this.tasksService.flag(user.id, id);
   }
 
@@ -261,7 +282,10 @@ export class TasksController {
     description: 'Task not found',
   })
   @Patch(':id/unflag')
-  unflag(@GetCurrentUser() user: CurrentUser, @Param('id') id: string) {
+  unflag(
+    @GetCurrentUser() user: CurrentUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<TaskWithLabels> {
     return this.tasksService.unflag(user.id, id);
   }
 
@@ -277,7 +301,10 @@ export class TasksController {
     description: 'Task not found',
   })
   @Post(':id/clone')
-  clone(@GetCurrentUser() user: CurrentUser, @Param('id') id: string) {
+  clone(
+    @GetCurrentUser() user: CurrentUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<TaskWithLabels> {
     return this.tasksService.clone(user.id, id);
   }
 
@@ -295,10 +322,10 @@ export class TasksController {
   @Patch(':id/milestone')
   setMilestone(
     @GetCurrentUser() user: CurrentUser,
-    @Param('projectId') projectId: string,
-    @Param('id') id: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() setTaskMilestoneDto: SetTaskMilestoneDto,
-  ) {
+  ): Promise<Task> {
     return this.tasksService.setMilestone(
       user.id,
       projectId,
@@ -307,15 +334,16 @@ export class TasksController {
     );
   }
 
+  @ApiOperation({ summary: 'Create task from template' })
   @ApiCreatedResponse({ type: TaskResponseDto })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   @ApiNotFoundResponse({ description: 'Project or task template not found' })
   @Post('from-template')
   createFromTemplate(
     @GetCurrentUser() user: CurrentUser,
-    @Param('projectId') projectId: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
     @Body() createTaskFromTemplateDto: CreateTaskFromTemplateDto,
-  ) {
+  ): Promise<TaskWithLabelsAndPeople> {
     return this.tasksService.createTaskFromTemplate(
       user.id,
       projectId,

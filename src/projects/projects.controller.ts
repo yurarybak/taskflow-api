@@ -5,6 +5,7 @@ import {
   ApiOperation,
   ApiUnauthorizedResponse,
   ApiNotFoundResponse,
+  ApiTags,
 } from '@nestjs/swagger';
 import {
   Controller,
@@ -16,6 +17,7 @@ import {
   Patch,
   Delete,
   Query,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -29,12 +31,15 @@ import { PaginatedProjectsResponseDto } from './dto/responses/paginated-projects
 import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
 
 import type { CurrentUser } from '../auth/types/current-user.type';
+import type { Project } from '../../generated/prisma/client';
+import type { PaginatedResponse } from '../common/types/paginated-response.type';
 
+@ApiTags('Projects')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('workspaces/:workspaceId/projects')
 export class ProjectsController {
-  constructor(private readonly projectsService: ProjectsService) { }
+  constructor(private readonly projectsService: ProjectsService) {}
 
   @ApiOperation({ summary: 'Create a new project in a workspace' })
   @ApiCreatedResponse({
@@ -46,9 +51,9 @@ export class ProjectsController {
   @Post()
   create(
     @GetCurrentUser() user: CurrentUser,
-    @Param('workspaceId') workspaceId: string,
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Body() createProjectDto: CreateProjectDto,
-  ) {
+  ): Promise<Project> {
     return this.projectsService.create(user.id, workspaceId, createProjectDto);
   }
 
@@ -62,9 +67,9 @@ export class ProjectsController {
   @Get()
   findAll(
     @GetCurrentUser() user: CurrentUser,
-    @Param('workspaceId') workspaceId: string,
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Query() query: FindProjectsQueryDto,
-  ) {
+  ): Promise<PaginatedResponse<Project>> {
     return this.projectsService.findAllByWorkspace(user.id, workspaceId, query);
   }
 
@@ -78,8 +83,8 @@ export class ProjectsController {
   @Get(':projectId')
   findOne(
     @GetCurrentUser() user: CurrentUser,
-    @Param('projectId') projectId: string,
-  ) {
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+  ): Promise<Project> {
     return this.projectsService.findOneByMember(user.id, projectId);
   }
 
@@ -93,9 +98,9 @@ export class ProjectsController {
   @Patch(':projectId')
   update(
     @GetCurrentUser() user: CurrentUser,
-    @Param('projectId') projectId: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
     @Body() updateProjectDto: UpdateProjectDto,
-  ) {
+  ): Promise<Project> {
     return this.projectsService.update(user.id, projectId, updateProjectDto);
   }
 
@@ -109,8 +114,8 @@ export class ProjectsController {
   @Delete(':projectId')
   async remove(
     @GetCurrentUser() user: CurrentUser,
-    @Param('projectId') projectId: string,
-  ) {
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+  ): Promise<{ success: boolean }> {
     await this.projectsService.remove(user.id, projectId);
 
     return {

@@ -10,6 +10,8 @@ import {
   ParseFilePipe,
   Delete,
   MaxFileSizeValidator,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -20,6 +22,7 @@ import {
   ApiBadRequestResponse,
   ApiConsumes,
   ApiBody,
+  ApiTags,
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 
@@ -32,7 +35,9 @@ import { UserResponseDto } from './dto/responses/user-response.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
 import { AvatarResponseDto } from './dto/responses/avatar-response.dto';
+import type { User } from '../../generated/prisma/client';
 
+@ApiTags('Users')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 @Controller('users')
@@ -47,7 +52,9 @@ export class UsersController {
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   @ApiNotFoundResponse({ description: 'User not found' })
   @Get('/me')
-  getCurrentUser(@GetCurrentUser() user: UserResponseDto) {
+  getCurrentUser(
+    @GetCurrentUser() user: UserResponseDto,
+  ): Promise<User | null> {
     return this.usersService.findById(user.id);
   }
 
@@ -62,7 +69,7 @@ export class UsersController {
   updateProfile(
     @GetCurrentUser() user: UserResponseDto,
     @Body() updateUserDto: UpdateUserDto,
-  ) {
+  ): Promise<User> {
     return this.usersService.updateProfile(user.id, updateUserDto);
   }
 
@@ -78,7 +85,7 @@ export class UsersController {
   async changePassword(
     @GetCurrentUser() user: UserResponseDto,
     @Body() changePasswordDto: ChangePasswordDto,
-  ) {
+  ): Promise<{ success: boolean }> {
     await this.usersService.changePassword(user.id, changePasswordDto);
 
     return {
@@ -129,6 +136,7 @@ export class UsersController {
       },
     }),
   )
+  @HttpCode(HttpStatus.OK)
   @Post('/me/avatar')
   async uploadAvatar(
     @GetCurrentUser() user: UserResponseDto,
@@ -143,7 +151,7 @@ export class UsersController {
       }),
     )
     file: Express.Multer.File,
-  ) {
+  ): Promise<{ avatarUrl: string }> {
     const avatarUrl = await this.usersService.uploadAvatar(user.id, file);
 
     return {
@@ -159,7 +167,9 @@ export class UsersController {
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   @ApiNotFoundResponse({ description: 'User not found' })
   @Delete('/me/avatar')
-  async removeAvatar(@GetCurrentUser() user: UserResponseDto) {
+  async removeAvatar(
+    @GetCurrentUser() user: UserResponseDto,
+  ): Promise<{ success: boolean }> {
     await this.usersService.removeAvatar(user.id);
 
     return {

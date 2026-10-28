@@ -4,6 +4,6 @@ import { RecurringTasksController } from './recurring-tasks.controller';
 
 @Module({
   providers: [RecurringTasksService],
-  controllers: [RecurringTasksController]
+  controllers: [RecurringTasksController],
 })
 export class RecurringTasksModule {}

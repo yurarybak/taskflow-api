@@ -1,14 +1,33 @@
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import helmet from 'helmet';
+import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 import { AppModule } from './app.module';
+import { registerFatalErrorLogging } from './logger/fatal-error-logging';
 
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+async function bootstrap(): Promise<void> {
+  registerFatalErrorLogging(new Logger('Process'));
 
-  const corsOrigins = process.env.CORS_ORIGINS?.split(',') ?? [];
+  // Buffer startup logs until the Winston logger replaces Nest's default one.
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
+  const configService = app.get(ConfigService);
+
+  // upgrade-insecure-requests would break Swagger UI and Bull Board assets when served over plain HTTP.
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: { upgradeInsecureRequests: null },
+      },
+    }),
+  );
+
+  const corsOrigins =
+    configService.get<string>('CORS_ORIGINS')?.split(',') ?? [];
 
   app.enableCors({
     origin: corsOrigins,
@@ -33,6 +52,6 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(configService.get<number>('PORT') ?? 3000);
 }
-bootstrap();
+void bootstrap();

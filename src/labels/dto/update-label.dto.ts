@@ -1,5 +1,11 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, MinLength, MaxLength, IsHexColor } from 'class-validator';
+import {
+  IsString,
+  MinLength,
+  MaxLength,
+  IsHexColor,
+  IsOptional,
+} from 'class-validator';
 
 export class UpdateLabelDto {
   @ApiPropertyOptional({
@@ -7,6 +13,7 @@ export class UpdateLabelDto {
     minLength: 2,
     maxLength: 40,
   })
+  @IsOptional()
   @IsString()
   @MinLength(2)
   @MaxLength(40)
@@ -15,6 +22,7 @@ export class UpdateLabelDto {
   @ApiPropertyOptional({
     example: '#2563EB',
   })
+  @IsOptional()
   @IsHexColor()
   color?: string;
 }

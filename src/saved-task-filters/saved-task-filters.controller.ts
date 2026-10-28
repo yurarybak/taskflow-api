@@ -7,6 +7,7 @@ import {
   Delete,
   Body,
   Param,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -16,6 +17,7 @@ import {
   ApiNotFoundResponse,
   ApiConflictResponse,
   ApiOkResponse,
+  ApiTags,
 } from '@nestjs/swagger';
 import { SavedTaskFiltersService } from './saved-task-filters.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -26,6 +28,7 @@ import { SavedTaskFilterResponseDto } from './dto/responses/saved-task-filter-re
 import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
 
 import type { CurrentUser } from '../auth/types/current-user.type';
+import type { SavedTaskFilter } from '../../generated/prisma/client';
 
 // TODO:
 // POST   /projects/:projectId/saved-filters
@@ -35,6 +38,7 @@ import type { CurrentUser } from '../auth/types/current-user.type';
 // DELETE /projects/:projectId/saved-filters/:id
 
 ApiBearerAuth();
+@ApiTags('Saved task filters')
 @UseGuards(JwtAuthGuard)
 @Controller('/projects/:projectId/saved-filters')
 export class SavedTaskFiltersController {
@@ -59,9 +63,9 @@ export class SavedTaskFiltersController {
   @Post()
   create(
     @GetCurrentUser() user: CurrentUser,
-    @Param('projectId') projectId: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
     @Body() createSavedTaskFilterDto: CreateSavedTaskFilterDto,
-  ) {
+  ): Promise<SavedTaskFilter> {
     return this.savedTaskFiltersService.create(
       user.id,
       projectId,
@@ -83,8 +87,8 @@ export class SavedTaskFiltersController {
   @Get()
   findAll(
     @GetCurrentUser() user: CurrentUser,
-    @Param('projectId') projectId: string,
-  ) {
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+  ): Promise<SavedTaskFilter[]> {
     return this.savedTaskFiltersService.findAll(user.id, projectId);
   }
 
@@ -102,9 +106,9 @@ export class SavedTaskFiltersController {
   @Get('/:id')
   findOne(
     @GetCurrentUser() user: CurrentUser,
-    @Param('projectId') projectId: string,
-    @Param('id') id: string,
-  ) {
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<SavedTaskFilter> {
     return this.savedTaskFiltersService.findOne(user.id, projectId, id);
   }
 
@@ -125,10 +129,10 @@ export class SavedTaskFiltersController {
   @Patch('/:id')
   update(
     @GetCurrentUser() user: CurrentUser,
-    @Param('projectId') projectId: string,
-    @Param('id') id: string,
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() updateSavedTaskFilterDto: UpdateSavedTaskFilterDto,
-  ) {
+  ): Promise<SavedTaskFilter> {
     return this.savedTaskFiltersService.update(
       user.id,
       projectId,
@@ -151,9 +155,9 @@ export class SavedTaskFiltersController {
   @Delete('/:id')
   async remove(
     @GetCurrentUser() user: CurrentUser,
-    @Param('projectId') projectId: string,
-    @Param('id') id: string,
-  ) {
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<{ success: boolean }> {
     await this.savedTaskFiltersService.remove(user.id, projectId, id);
 
     return {

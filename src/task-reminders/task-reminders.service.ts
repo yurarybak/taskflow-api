@@ -10,38 +10,18 @@ import { NotificationsQueueService } from '../queues/notifications-queue/notific
 
 import { CreateTaskReminderDto } from './dto/create-task-reminder.dto';
 import { UpdateTaskReminderDto } from './dto/update-task-reminder.dto';
+import type { TaskReminder } from '../../generated/prisma/client';
+import { WorkspaceAccessService } from '../workspace-access/workspace-access.service';
 
 @Injectable()
 export class TaskRemindersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsQueueService: NotificationsQueueService,
+    private readonly workspaceAccessService: WorkspaceAccessService,
   ) {}
 
-  private async ensureTaskMember(taskId: string, userId: string) {
-    const task = await this.prisma.task.findFirst({
-      where: {
-        id: taskId,
-        project: {
-          workspace: {
-            members: {
-              some: {
-                userId,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!task) {
-      throw new NotFoundException('Task not found');
-    }
-
-    return task;
-  }
-
-  async sendReminder(reminderId: string) {
+  async sendReminder(reminderId: string): Promise<void> {
     const reminder = await this.prisma.taskReminder.findUnique({
       where: {
         id: reminderId,
@@ -85,14 +65,14 @@ export class TaskRemindersService {
     taskId: string,
     userId: string,
     createTaskReminderDto: CreateTaskReminderDto,
-  ) {
+  ): Promise<TaskReminder> {
     const remindAt = new Date(createTaskReminderDto.remindAt);
 
     if (remindAt.getTime() <= Date.now()) {
       throw new BadRequestException('Reminder date must be in the future');
     }
 
-    await this.ensureTaskMember(taskId, userId);
+    await this.workspaceAccessService.ensureTaskMember(taskId, userId);
 
     const reminder = await this.prisma.taskReminder.create({
       data: {
@@ -120,8 +100,8 @@ export class TaskRemindersService {
     });
   }
 
-  async findAll(userId: string, taskId: string) {
-    await this.ensureTaskMember(taskId, userId);
+  async findAll(userId: string, taskId: string): Promise<TaskReminder[]> {
+    await this.workspaceAccessService.ensureTaskMember(taskId, userId);
 
     return this.prisma.taskReminder.findMany({
       where: {
@@ -134,8 +114,8 @@ export class TaskRemindersService {
     });
   }
 
-  async remove(userId: string, taskId: string, id: string) {
-    await this.ensureTaskMember(taskId, userId);
+  async remove(userId: string, taskId: string, id: string): Promise<void> {
+    await this.workspaceAccessService.ensureTaskMember(taskId, userId);
 
     const reminder = await this.prisma.taskReminder.findFirst({
       where: {
@@ -167,7 +147,7 @@ export class TaskRemindersService {
     taskId: string,
     id: string,
     updateTaskReminderDto: UpdateTaskReminderDto,
-  ) {
+  ): Promise<TaskReminder> {
     const remindAt = new Date(updateTaskReminderDto.remindAt);
 
     if (remindAt.getTime() <= Date.now()) {

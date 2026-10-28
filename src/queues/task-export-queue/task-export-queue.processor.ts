@@ -10,6 +10,7 @@ import {
   TASK_EXPORT_QUEUE,
   TASK_EXPORT_JOBS,
 } from './task-export-queue.constants';
+import type { TaskExport } from '../../../generated/prisma/client';
 
 @Processor(TASK_EXPORT_QUEUE, {
   concurrency: 2,
@@ -22,7 +23,9 @@ export class TaskExportQueueProcessor extends WorkerHost {
 
   private readonly logger = new Logger(TaskExportQueueProcessor.name);
 
-  async process(job: Job<ExportProjectTasksCsvJobPayload>) {
+  async process(
+    job: Job<ExportProjectTasksCsvJobPayload>,
+  ): Promise<TaskExport | undefined> {
     switch (job.name) {
       case TASK_EXPORT_JOBS.EXPORT_PROJECT_TASKS_CSV:
         return this.taskExportsService.generateProjectTasksCsv(
@@ -35,17 +38,17 @@ export class TaskExportQueueProcessor extends WorkerHost {
   }
 
   @OnWorkerEvent('active')
-  onActive(job: Job) {
+  onActive(job: Job): void {
     this.logger.log(`Job ${job.id} started: ${job.name}`);
   }
 
   @OnWorkerEvent('completed')
-  onCompleted(job: Job) {
+  onCompleted(job: Job): void {
     this.logger.log(`Job ${job.id} completed: ${job.name}`);
   }
 
   @OnWorkerEvent('failed')
-  onFailed(job: Job, error: Error) {
+  onFailed(job: Job, error: Error): void {
     this.logger.error(`Job ${job.id} failed: ${job.name}`, error.stack);
   }
 }
