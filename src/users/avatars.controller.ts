@@ -13,10 +13,11 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { existsSync } from 'fs';
-import { join } from 'path';
+import { extname, join } from 'path';
 import type { Response } from 'express';
 
 import { UsersService } from './users.service';
+import { ALLOWED_AVATAR_EXTENSIONS } from './config/avatar-storage.config';
 
 @ApiTags('Users')
 @Controller('users')
@@ -39,9 +40,18 @@ export class AvatarsController {
 
     const filePath = join(process.cwd(), 'uploads', 'avatars', storageName);
 
-    if (!existsSync(filePath)) {
+    // Avatars stored before the extension was derived from the MIME type may have any
+    // extension (e.g. .html) and must not be served with that Content-Type.
+    if (
+      !ALLOWED_AVATAR_EXTENSIONS.has(extname(storageName).toLowerCase()) ||
+      !existsSync(filePath)
+    ) {
       throw new NotFoundException('Avatar file not found');
     }
+
+    // Web clients on another origin embed avatars with <img>; every other route keeps
+    // helmet's same-origin policy.
+    response.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
 
     return response.sendFile(filePath);
   }

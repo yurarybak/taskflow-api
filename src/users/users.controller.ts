@@ -29,7 +29,10 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UsersService } from './users.service';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
-import { avatarStorage } from './config/avatar-storage.config';
+import {
+  avatarFileFilter,
+  avatarStorage,
+} from './config/avatar-storage.config';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/responses/user-response.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -116,22 +119,7 @@ export class UsersController {
     FileInterceptor('file', {
       storage: avatarStorage,
       limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
-      fileFilter: (_request, file, callback) => {
-        const allowedMimeTypes = new Set([
-          'image/jpeg',
-          'image/png',
-          'image/webp',
-        ]);
-
-        if (!allowedMimeTypes.has(file.mimetype)) {
-          return callback(
-            new Error('Only jpeg, png and webp images are allowed'),
-            false,
-          );
-        }
-
-        callback(null, true);
-      },
+      fileFilter: avatarFileFilter,
     }),
   )
   @HttpCode(HttpStatus.OK)
