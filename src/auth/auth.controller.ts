@@ -101,10 +101,11 @@ export class AuthController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   async logout(
+    @GetCurrentUser() user: CurrentUser,
     @Body() refreshTokenDto: RefreshTokenDto,
   ): Promise<{ success: boolean }> {
     // Invalidate the refresh token in the database
-    await this.authService.logout(refreshTokenDto);
+    await this.authService.logout(user.id, refreshTokenDto);
     return {
       success: true,
     };

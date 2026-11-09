@@ -7,11 +7,13 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { createHash, randomUUID } from 'crypto';
 import type { StringValue } from 'ms';
 
 import { UsersService } from '../users/users.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailQueueService } from '../queues/email-queue/email-queue.service';
+import type { PrismaTransactionClient } from '../prisma/types/prisma-transaction-client.type';
 
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -82,9 +84,11 @@ export class AuthService {
   }
 
   private async generateRefreshToken(user: CurrentUser): Promise<string> {
+    // jti keeps tokens issued in the same second distinct (tokenHash is unique).
     const payload = {
       sub: user.id,
       email: user.email,
+      jti: randomUUID(),
     };
 
     return this.jwtService.signAsync(payload, {
@@ -143,25 +147,37 @@ export class AuthService {
     return expiresAt;
   }
 
-  private async createRefreshToken(user: CurrentUser): Promise<string> {
-    const refreshToken = await this.generateRefreshToken(user);
-    const tokenHash = await bcrypt.hash(refreshToken, 10);
+  // A refresh token is a high-entropy signed JWT, so a fast deterministic hash is enough
+  // and lets us look it up by its unique hash. bcrypt only reads the first 72 bytes,
+  // which are identical for all JWTs of one user.
+  private hashRefreshToken(refreshToken: string): string {
+    return createHash('sha256').update(refreshToken).digest('hex');
+  }
 
-    await this.prisma.refreshToken.create({
+  private async createRefreshToken(
+    user: CurrentUser,
+    familyId: string,
+    tx: PrismaTransactionClient = this.prisma,
+  ): Promise<{ id: string; refreshToken: string }> {
+    const refreshToken = await this.generateRefreshToken(user);
+
+    const { id } = await tx.refreshToken.create({
       data: {
-        tokenHash,
+        tokenHash: this.hashRefreshToken(refreshToken),
+        familyId,
         userId: user.id,
         expiresAt: this.getRefreshTokenExpiresAt(),
       },
+      select: { id: true },
     });
 
-    return refreshToken;
+    return { id, refreshToken };
   }
 
   private async createAuthResponse(user: AuthUser): Promise<AuthResponse> {
-    const [accessToken, refreshToken] = await Promise.all([
+    const [accessToken, { refreshToken }] = await Promise.all([
       this.generateAccessToken(user),
-      this.createRefreshToken(user),
+      this.createRefreshToken(user, randomUUID()),
     ]);
 
     return {
@@ -185,31 +201,29 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    const refreshTokens = await this.prisma.refreshToken.findMany({
-      where: {
-        userId: payload.sub,
-        revokedAt: null,
-        expiresAt: {
-          gt: new Date(),
-        },
-      },
+    const storedToken = await this.prisma.refreshToken.findUnique({
+      where: { tokenHash: this.hashRefreshToken(refreshTokenDto.refreshToken) },
     });
 
-    const matchingToken = this.findMatchingRefreshToken(
-      refreshTokenDto.refreshToken,
-      refreshTokens,
-    );
-
-    if (!matchingToken) {
+    if (
+      !storedToken ||
+      storedToken.userId !== payload.sub ||
+      storedToken.expiresAt <= new Date()
+    ) {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    await this.prisma.refreshToken.update({
-      where: { id: matchingToken.id },
-      data: { revokedAt: new Date() },
-    });
+    if (storedToken.revokedAt) {
+      // An already rotated token is being replayed: either it was stolen or the
+      // legitimate client was, so end the whole session (token family).
+      if (storedToken.replacedById) {
+        await this.revokeRefreshTokenFamily(storedToken.familyId);
+      }
 
-    const user = await this.usersService.findByEmail(payload.email);
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const user = await this.usersService.findById(payload.sub);
 
     if (!user) {
       throw new UnauthorizedException('User not found');
@@ -217,53 +231,51 @@ export class AuthService {
 
     const { password, ...safeUser } = user;
 
-    return this.createAuthResponse(safeUser);
-  }
-
-  private findMatchingRefreshToken(
-    refreshToken: string,
-    refreshTokens: { id: string; tokenHash: string }[],
-  ): { id: string; tokenHash: string } | null {
-    for (const storedRefreshToken of refreshTokens) {
-      if (bcrypt.compareSync(refreshToken, storedRefreshToken.tokenHash)) {
-        return storedRefreshToken;
-      }
-    }
-    return null;
-  }
-
-  async logout(refreshTokenDto: RefreshTokenDto): Promise<void> {
-    let payload: JwtPayload;
-
-    try {
-      payload = await this.jwtService.verifyAsync<JwtPayload>(
-        refreshTokenDto.refreshToken,
-        {
-          secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
-        },
+    return this.prisma.$transaction(async (tx) => {
+      const { id: newTokenId, refreshToken } = await this.createRefreshToken(
+        safeUser,
+        storedToken.familyId,
+        tx,
       );
-    } catch {
-      return;
-    }
 
-    const refreshTokens = await this.prisma.refreshToken.findMany({
+      // The revokedAt guard makes rotation atomic: of two concurrent refreshes
+      // with the same token only one updates the row.
+      const { count } = await tx.refreshToken.updateMany({
+        where: { id: storedToken.id, revokedAt: null },
+        data: { revokedAt: new Date(), replacedById: newTokenId },
+      });
+
+      if (count === 0) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+
+      return {
+        accessToken: await this.generateAccessToken(safeUser),
+        refreshToken,
+        user: safeUser,
+      };
+    });
+  }
+
+  private async revokeRefreshTokenFamily(familyId: string): Promise<void> {
+    await this.prisma.refreshToken.updateMany({
+      where: { familyId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
+
+  async logout(
+    userId: string,
+    refreshTokenDto: RefreshTokenDto,
+  ): Promise<void> {
+    await this.prisma.refreshToken.updateMany({
       where: {
-        userId: payload.sub,
+        tokenHash: this.hashRefreshToken(refreshTokenDto.refreshToken),
+        userId,
         revokedAt: null,
       },
+      data: { revokedAt: new Date() },
     });
-
-    const matchingToken = this.findMatchingRefreshToken(
-      refreshTokenDto.refreshToken,
-      refreshTokens,
-    );
-
-    if (matchingToken) {
-      await this.prisma.refreshToken.update({
-        where: { id: matchingToken.id },
-        data: { revokedAt: new Date() },
-      });
-    }
   }
 
   async logoutAll(userId: string): Promise<void> {

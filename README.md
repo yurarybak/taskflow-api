@@ -24,7 +24,7 @@ TaskFlow API is a learning-focused task management backend built with NestJS, Ty
 
 - User registration and login
 - JWT access tokens
-- Refresh tokens stored as hashed values
+- Refresh tokens stored as SHA-256 hashes, rotated on every refresh with reuse detection
 - Logout and logout from all devices
 - Forgot password and reset password flow
 - Password reset emails sent through BullMQ + SendGrid
@@ -389,6 +389,8 @@ curl -X POST http://localhost:3000/auth/refresh \
   -d '{"refreshToken":"<refreshToken>"}'
 # 200 {"accessToken":"...","refreshToken":"...","user":{...}}
 ```
+
+Refresh tokens rotate: every successful refresh revokes the token it used, so always keep the newest one. A revoked, expired or unknown token returns `401`. Replaying an already rotated token revokes every token of that session (other sessions stay signed in). `POST /auth/logout` revokes the refresh token sent in its body; `POST /auth/logout-all` revokes all of the user's sessions.
 
 ### Create a workspace, project and task
 
