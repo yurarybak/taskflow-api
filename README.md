@@ -415,7 +415,7 @@ curl -X POST http://localhost:3000/projects/<projectId>/tasks \
 
 ### List tasks with filters and pagination
 
-Filters accept comma-separated values. Unknown query parameters are rejected with `400`.
+Filters accept comma-separated values. Unknown query parameters are rejected with `400`. `limit` defaults to `10` and must not exceed `100`.
 
 ```bash
 curl "http://localhost:3000/projects/<projectId>/tasks?page=1&limit=10&statuses=TODO,IN_PROGRESS&priorities=HIGH&search=login" \
@@ -430,6 +430,12 @@ curl -X PATCH http://localhost:3000/projects/<projectId>/tasks/<taskId> \
   -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   -d '{"status":"IN_PROGRESS"}'
 # 200 — also writes a STATUS_CHANGED activity entry and notifies task watchers
+
+# clear the description: send null (an empty string is stored as null too)
+curl -X PATCH http://localhost:3000/projects/<projectId>/tasks/<taskId> \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"description":null}'
+# 200 {"id":"<taskId>","description":null,...}
 
 curl -X POST http://localhost:3000/tasks/<taskId>/comments \
   -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \

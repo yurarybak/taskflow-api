@@ -1,4 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
   IsDateString,
   IsEnum,
@@ -30,14 +31,16 @@ export class UpdateTaskDto {
 
   @ApiPropertyOptional({
     example: 'Updated Implement JWT authentication for secure API access',
-    minLength: 2,
+    description: 'Send null (or an empty string) to clear the description',
     maxLength: 1000,
+    nullable: true,
+    type: String,
   })
+  @Transform(({ value }: { value: unknown }) => (value === '' ? null : value))
   @IsOptional()
   @IsString()
-  @MinLength(2)
   @MaxLength(1000)
-  description?: string;
+  description?: string | null;
 
   @ApiPropertyOptional({
     example: TaskStatus.IN_PROGRESS,

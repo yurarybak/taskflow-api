@@ -21,8 +21,10 @@ export class TaskResponseDto {
 
   @ApiPropertyOptional({
     example: 'Implement JWT authentication for secure API access',
+    nullable: true,
+    type: String,
   })
-  description?: string;
+  description?: string | null;
 
   @ApiProperty({
     example: TaskStatus.IN_PROGRESS,
