@@ -28,6 +28,10 @@ import type { AuthResponse } from './types/auth-response.type';
 import type { PublicUser } from '../common/types/user-summary.type';
 import { toPublicUser } from '../common/utils/public-user.util';
 
+// bcrypt hash (cost 10) of a random string nobody knows.
+const DUMMY_PASSWORD_HASH =
+  '$2b$10$ssjfQXNKDWtHSYwCwubofOFgsquVqCSvPmcqgzec/pgIDou./rLDq';
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -56,17 +60,16 @@ export class AuthService {
 
   async login(loginDto: LoginDto): Promise<AuthResponse> {
     const user = await this.usersService.findByEmail(loginDto.email);
-    if (!user) {
-      throw new ConflictException('Invalid credentials');
-    }
 
+    // Unknown emails are still checked against a dummy hash with the same cost, so
+    // response time doesn't reveal which emails are registered.
     const isPasswordValid = await bcrypt.compare(
       loginDto.password,
-      user.password,
+      user?.password ?? DUMMY_PASSWORD_HASH,
     );
 
-    if (!isPasswordValid) {
-      throw new ConflictException('Invalid credentials');
+    if (!user || !isPasswordValid) {
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     return this.createAuthResponse(toPublicUser(user));

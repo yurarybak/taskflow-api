@@ -41,6 +41,40 @@ describe('Auth (e2e)', () => {
       .expect(200);
   });
 
+  describe('POST /auth/login', () => {
+    it('returns the same 401 for a wrong password and an unknown email', async () => {
+      const session = await registerUser(app);
+
+      const wrongPassword = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email: session.email, password: 'wrong-password' })
+        .expect(401);
+
+      const unknownEmail = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email: 'nobody@example.com', password: 'whatever1' })
+        .expect(401);
+
+      expect(wrongPassword.body).toEqual({
+        message: 'Invalid credentials',
+        error: 'Unauthorized',
+        statusCode: 401,
+      });
+      expect(unknownEmail.body).toEqual(wrongPassword.body);
+    });
+  });
+
+  describe('POST /auth/register', () => {
+    it('returns 409 for an email that is already registered', async () => {
+      const session = await registerUser(app);
+
+      await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email: session.email, password: 'Password123!' })
+        .expect(409);
+    });
+  });
+
   describe('POST /auth/refresh', () => {
     it('rotates the token and rejects the used one', async () => {
       const session = await registerUser(app);
