@@ -23,7 +23,7 @@ npm run lint                    # eslint with --fix (Prettier runs through eslin
 npm test                                         # unit tests (*.spec.ts under src/)
 npx jest src/tasks/tasks.service.spec.ts         # single test file
 npx jest -t "records the status change"          # by test name
-npm run test:e2e                                 # test/*.e2e-spec.ts
+npm run test:e2e                                 # test/*.e2e-spec.ts against <db>_test (migrated + truncated per run); needs Postgres + Redis
 
 npx prisma migrate dev --name <migration_name>   # new migration after editing prisma/schema.prisma
 ```
@@ -82,6 +82,8 @@ Uploads use Multer `diskStorage` configs (`src/attachments/config/`, `src/users/
 Pagination uses `PaginatedResponse<T>` + `createPaginationMeta(total, page, limit)` with `page`/`limit` query params (defaults 1/10) and `Promise.all([findMany, count])`. Mentions in comments use the `@[<uuid>]` format (`extractMentionUserIds`).
 
 ## Testing
+
+E2E specs boot the real `AppModule` through `createTestApp()` (`test/utils/test-app.ts`), which applies the same `configureApp` (Helmet, CORS, `ValidationPipe`) as `main.ts`; `registerUser()` returns a fresh user's tokens. `NODE_ENV=test` disables the throttler. Jest needs `--experimental-vm-modules` because the Prisma 7 client loads its query compiler via dynamic `import()`.
 
 Unit tests mock collaborators with `{ provide: X, useValue: {...} }`; scaffold specs use `.useMocker(() => ({}))` so DI resolves. Jest maps `.js` import suffixes (needed for the generated Prisma client). Specs that don't boot Nest but use class-transformer need `import 'reflect-metadata'`. Services with real coverage: `WorkspaceAccessService`, `TasksService`, `TaskNotificationsService`, `TaskExportsService`, `EmailService`, env validation, Bull Board auth.
 

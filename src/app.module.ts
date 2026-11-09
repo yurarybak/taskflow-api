@@ -48,7 +48,14 @@ import { createBullBoardAuthMiddleware } from './queues/config/bull-board-auth.m
           configService.get<string>('NODE_ENV') ?? 'development',
         ),
     }),
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        throttlers: [{ ttl: 60_000, limit: 100 }],
+        // e2e suites log in far more often than the per-route auth limits allow.
+        skipIf: (): boolean => configService.get<string>('NODE_ENV') === 'test',
+      }),
+    }),
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({

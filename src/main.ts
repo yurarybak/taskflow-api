@@ -1,12 +1,12 @@
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
-import helmet from 'helmet';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 import { AppModule } from './app.module';
+import { configureApp } from './app.setup';
 import { registerFatalErrorLogging } from './logger/fatal-error-logging';
 
 async function bootstrap(): Promise<void> {
@@ -17,30 +17,7 @@ async function bootstrap(): Promise<void> {
   app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
   const configService = app.get(ConfigService);
 
-  // upgrade-insecure-requests would break Swagger UI and Bull Board assets when served over plain HTTP.
-  app.use(
-    helmet({
-      contentSecurityPolicy: {
-        directives: { upgradeInsecureRequests: null },
-      },
-    }),
-  );
-
-  const corsOrigins =
-    configService.get<string>('CORS_ORIGINS')?.split(',') ?? [];
-
-  app.enableCors({
-    origin: corsOrigins,
-    credentials: true,
-  });
-
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
+  configureApp(app);
 
   const config = new DocumentBuilder()
     .setTitle('TaskFlow API')
