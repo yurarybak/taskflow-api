@@ -2,6 +2,7 @@ import {
   ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiUnauthorizedResponse,
@@ -26,19 +27,24 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { AuthResponseDto } from './dto/responses/auth-response.dto';
-import { AuthUserResponseDto } from './dto/responses/auth-user-response.dto';
+import { UsersService } from '../users/users.service';
+import { UserResponseDto } from '../users/dto/responses/user-response.dto';
 import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 
 import type { CurrentUser } from './types/current-user.type';
 import type { AuthResponse } from './types/auth-response.type';
+import type { PublicUser } from '../common/types/user-summary.type';
 import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly usersService: UsersService,
+  ) {}
 
   @ApiTooManyRequestsResponse({
     description: 'Too many requests, try again later',
@@ -69,13 +75,14 @@ export class AuthController {
   }
 
   @ApiOperation({ summary: 'Get current authenticated user' })
-  @ApiOkResponse({ type: AuthUserResponseDto })
+  @ApiOkResponse({ type: UserResponseDto })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiNotFoundResponse({ description: 'User not found' })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  getMe(@GetCurrentUser() user: CurrentUser): CurrentUser {
-    return user;
+  getMe(@GetCurrentUser() user: CurrentUser): Promise<PublicUser> {
+    return this.usersService.getProfile(user.id);
   }
 
   @ApiTooManyRequestsResponse({

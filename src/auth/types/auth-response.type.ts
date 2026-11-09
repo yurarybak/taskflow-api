@@ -1,14 +1,7 @@
-export interface AuthUser {
-  id: string;
-  email: string;
-  firstName?: string | null;
-  lastName?: string | null;
-  createdAt?: Date;
-  updatedAt?: Date;
-}
+import type { PublicUser } from '../../common/types/user-summary.type';
 
 export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
-  user: AuthUser;
+  user: PublicUser;
 }

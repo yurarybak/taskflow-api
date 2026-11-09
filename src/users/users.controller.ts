@@ -35,7 +35,7 @@ import { UserResponseDto } from './dto/responses/user-response.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
 import { AvatarResponseDto } from './dto/responses/avatar-response.dto';
-import type { User } from '../../generated/prisma/client';
+import type { PublicUser } from '../common/types/user-summary.type';
 
 @ApiTags('Users')
 @UseGuards(JwtAuthGuard)
@@ -52,10 +52,8 @@ export class UsersController {
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   @ApiNotFoundResponse({ description: 'User not found' })
   @Get('/me')
-  getCurrentUser(
-    @GetCurrentUser() user: UserResponseDto,
-  ): Promise<User | null> {
-    return this.usersService.findById(user.id);
+  getCurrentUser(@GetCurrentUser() user: UserResponseDto): Promise<PublicUser> {
+    return this.usersService.getProfile(user.id);
   }
 
   @ApiOperation({ summary: 'Update current user' })
@@ -69,7 +67,7 @@ export class UsersController {
   updateProfile(
     @GetCurrentUser() user: UserResponseDto,
     @Body() updateUserDto: UpdateUserDto,
-  ): Promise<User> {
+  ): Promise<PublicUser> {
     return this.usersService.updateProfile(user.id, updateUserDto);
   }
 

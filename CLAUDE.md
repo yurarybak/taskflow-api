@@ -33,7 +33,7 @@ The Husky pre-commit hook runs `lint-staged` (eslint --fix on staged `.ts`) and 
 ## Coding standards
 
 - **TypeScript** — `strict: true`. `any` is forbidden (lint error); use `unknown` and narrow. Every function and method has explicit parameter and return types (`explicit-function-return-type` is an error).
-- **Return types** — use Prisma model types (`Task`, `Pick<User, ...>`) or the named shapes in `<feature>/types/` (`TaskWithLabels`, `WorkspaceMemberWithUser`, `UserSummary`, `PublicUser`). Never paste an expanded inferred Prisma type.
+- **Return types** — use Prisma model types (`Task`, `Pick<User, ...>`) or the named shapes in `<feature>/types/` (`TaskWithLabels`, `WorkspaceMemberWithUser`, `UserSummary`, `PublicUser`). Never paste an expanded inferred Prisma type. A user returned to the client is always a `PublicUser`: query it with `publicUserSelect` or map a full `User` through `toPublicUser` (`src/common/utils/public-user.util.ts`), never `const { password, ...rest } = user`.
 - **Types folder** — contracts live in `<feature>/types/*.type.ts`. New object shapes use `interface`; `type` is for unions and `Pick`/`Omit` aliases. Existing `type` declarations are left as they are.
 - **Entities** — Prisma models from `generated/prisma/client` are the entities; there is no separate entity layer. Import them with `import type`.
 - **DTOs** — request DTOs in `dto/`, response DTOs in `dto/responses/`. Every field has `@ApiProperty`/`@ApiPropertyOptional` plus class-validator rules. An optional field (`?` / `@ApiPropertyOptional`) must also have `@IsOptional()`. No JSDoc on DTOs.

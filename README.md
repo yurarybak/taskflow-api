@@ -392,6 +392,8 @@ curl -X POST http://localhost:3000/auth/refresh \
 
 Refresh tokens rotate: every successful refresh revokes the token it used, so always keep the newest one. A revoked, expired or unknown token returns `401`. Replaying an already rotated token revokes every token of that session (other sessions stay signed in). `POST /auth/logout` revokes the refresh token sent in its body; `POST /auth/logout-all` revokes all of the user's sessions.
 
+`GET /auth/me` and `GET /users/me` return the same public user as `login`/`refresh` (`id`, `email`, `firstName`, `lastName`, `createdAt`, `updatedAt`); password hashes and storage keys are never serialized.
+
 ### Create a workspace, project and task
 
 ```bash

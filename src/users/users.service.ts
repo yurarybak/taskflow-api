@@ -12,7 +12,9 @@ import { PrismaService } from '../prisma/prisma.service';
 
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { publicUserSelect } from '../common/utils/public-user.util';
 import type { User } from '../../generated/prisma/client';
+import type { PublicUser } from '../common/types/user-summary.type';
 
 type CreateUserInput = {
   email: string;
@@ -59,20 +61,32 @@ export class UsersService {
     });
   }
 
-  findById(id: string): Promise<User | null> {
+  findById(id: string): Promise<PublicUser | null> {
     return this.prisma.user.findUnique({
       where: {
         id,
       },
+      select: publicUserSelect,
     });
   }
 
-  updateProfile(id: string, updateUserDto: UpdateUserDto): Promise<User> {
+  async getProfile(id: string): Promise<PublicUser> {
+    const user = await this.findById(id);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user;
+  }
+
+  updateProfile(id: string, updateUserDto: UpdateUserDto): Promise<PublicUser> {
     return this.prisma.user.update({
       where: {
         id,
       },
       data: updateUserDto,
+      select: publicUserSelect,
     });
   }
 
@@ -80,7 +94,14 @@ export class UsersService {
     id: string,
     changePasswordDto: ChangePasswordDto,
   ): Promise<void> {
-    const user = await this.findById(id);
+    const user = await this.prisma.user.findUnique({
+      where: {
+        id,
+      },
+      select: {
+        password: true,
+      },
+    });
 
     if (!user) {
       throw new UnauthorizedException('User not found');

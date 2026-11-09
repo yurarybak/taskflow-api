@@ -24,7 +24,9 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import type { JwtPayload } from './types/jwt-payload.type';
 import type { CurrentUser } from './types/current-user.type';
 import type { PasswordResetPayload } from './types/password-reset-payload.type';
-import type { AuthResponse, AuthUser } from './types/auth-response.type';
+import type { AuthResponse } from './types/auth-response.type';
+import type { PublicUser } from '../common/types/user-summary.type';
+import { toPublicUser } from '../common/utils/public-user.util';
 
 @Injectable()
 export class AuthService {
@@ -49,9 +51,7 @@ export class AuthService {
       password: hashedPassword,
     });
 
-    const { password, ...safeUser } = user;
-
-    return this.createAuthResponse(safeUser);
+    return this.createAuthResponse(toPublicUser(user));
   }
 
   async login(loginDto: LoginDto): Promise<AuthResponse> {
@@ -69,9 +69,7 @@ export class AuthService {
       throw new ConflictException('Invalid credentials');
     }
 
-    const { password, ...safeUser } = user;
-
-    return this.createAuthResponse(safeUser);
+    return this.createAuthResponse(toPublicUser(user));
   }
 
   private async generateAccessToken(user: CurrentUser): Promise<string> {
@@ -174,7 +172,7 @@ export class AuthService {
     return { id, refreshToken };
   }
 
-  private async createAuthResponse(user: AuthUser): Promise<AuthResponse> {
+  private async createAuthResponse(user: PublicUser): Promise<AuthResponse> {
     const [accessToken, { refreshToken }] = await Promise.all([
       this.generateAccessToken(user),
       this.createRefreshToken(user, randomUUID()),
@@ -229,11 +227,9 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    const { password, ...safeUser } = user;
-
     return this.prisma.$transaction(async (tx) => {
       const { id: newTokenId, refreshToken } = await this.createRefreshToken(
-        safeUser,
+        user,
         storedToken.familyId,
         tx,
       );
@@ -250,9 +246,9 @@ export class AuthService {
       }
 
       return {
-        accessToken: await this.generateAccessToken(safeUser),
+        accessToken: await this.generateAccessToken(user),
         refreshToken,
-        user: safeUser,
+        user,
       };
     });
   }
