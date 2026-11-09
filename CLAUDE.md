@@ -76,7 +76,7 @@ Each queue module also registers with Bull Board. Shared retry/backoff settings 
 `main.ts` applies Helmet (CSP without `upgrade-insecure-requests`) and CORS from `CORS_ORIGINS`. `ThrottlerGuard` is global (100 req/min); public auth routes override it with `@Throttle`. Bull Board is guarded by `createBullBoardAuthMiddleware`: Basic auth when `BULL_BOARD_USERNAME`/`PASSWORD` are set, 404 in production without them, open otherwise. Auth is Bearer-header only (no cookies), which is why there is no CSRF middleware.
 
 ### Files
-Uploads use Multer `diskStorage` configs (`src/attachments/config/`, `src/users/config/`) writing to `uploads/` (gitignored) with UUID storage names; DB rows keep the storage name. CSV exports go to `uploads/exports/tasks`.
+Uploads go to `uploads/` (gitignored) with UUID storage names; DB rows keep the storage name. Avatars use a Multer `diskStorage` config (`src/users/config/`). Attachments use `memoryStorage` (with `defParamCharset: 'utf8'` so non-ASCII names survive): `AttachmentFileTypeValidator` checks the extension against `src/attachments/config/attachment-file-types.ts` and the bytes against its signature, then `AttachmentsService.create` writes the buffer itself. Nest's `FileTypeValidator` needs `file.buffer`, so it never works with disk storage. CORS exposes `Content-Disposition` so browser clients can read download file names. CSV exports go to `uploads/exports/tasks`.
 
 ### Shared code (`src/common/`)
 Pagination uses `PaginatedResponse<T>` + `createPaginationMeta(total, page, limit)` with `page`/`limit` query params (defaults 1/10) and `Promise.all([findMany, count])`. Mentions in comments use the `@[<uuid>]` format (`extractMentionUserIds`).

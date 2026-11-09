@@ -11,10 +11,10 @@ import {
   Delete,
   ParseFilePipe,
   MaxFileSizeValidator,
-  FileTypeValidator,
   ParseUUIDPipe,
 } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
   ApiOperation,
   ApiConsumes,
@@ -29,10 +29,11 @@ import { existsSync } from 'fs';
 import { join } from 'path';
 import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AttachmentsService } from './attachments.service';
-import { attachmentStorage } from './config/attachment-storage.config';
+import { AttachmentFileTypeValidator } from './validators/attachment-file-type.validator';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { AttachmentResponseDto } from './dto/responses/attachment-response.dto';
 import { SuccessResponseDto } from '../common/dto/responses/success-response.dto';
@@ -71,10 +72,16 @@ export class AttachmentsController {
   @ApiNotFoundResponse({
     description: 'Task not found',
   })
+  @ApiBadRequestResponse({
+    description: 'File is missing or its type is not allowed',
+  })
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: attachmentStorage,
+      // Kept in memory so the content can be checked before anything is written to disk.
+      storage: memoryStorage(),
       limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+      // Browsers send non-ASCII file names as raw UTF-8; Multer defaults to latin1.
+      defParamCharset: 'utf8',
     }),
   )
   @Post()
@@ -88,10 +95,7 @@ export class AttachmentsController {
           new MaxFileSizeValidator({
             maxSize: 10 * 1024 * 1024,
           }),
-          new FileTypeValidator({
-            fileType:
-              /^(application\/pdf|image\/(jpeg|png|webp)|text\/plain|application\/zip|application\/vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet))$/,
-          }),
+          new AttachmentFileTypeValidator(),
         ],
       }),
     )

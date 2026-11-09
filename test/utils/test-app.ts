@@ -15,6 +15,15 @@ export interface TestSession {
   userId: string;
 }
 
+export interface TestTask {
+  projectId: string;
+  taskId: string;
+}
+
+interface CreatedResource {
+  id: string;
+}
+
 interface AuthResponseBody {
   accessToken: string;
   refreshToken: string;
@@ -62,4 +71,38 @@ export async function registerUser(
     refreshToken: body.refreshToken,
     userId: body.user.id,
   };
+}
+
+export async function createTask(
+  app: INestApplication<App>,
+  session: TestSession,
+): Promise<TestTask> {
+  const server = app.getHttpServer();
+  const auth = `Bearer ${session.accessToken}`;
+
+  const workspace = (
+    await request(server)
+      .post('/workspaces')
+      .set('Authorization', auth)
+      .send({ name: 'E2E workspace' })
+      .expect(201)
+  ).body as CreatedResource;
+
+  const project = (
+    await request(server)
+      .post(`/workspaces/${workspace.id}/projects`)
+      .set('Authorization', auth)
+      .send({ name: 'E2E project' })
+      .expect(201)
+  ).body as CreatedResource;
+
+  const task = (
+    await request(server)
+      .post(`/projects/${project.id}/tasks`)
+      .set('Authorization', auth)
+      .send({ title: 'E2E task' })
+      .expect(201)
+  ).body as CreatedResource;
+
+  return { projectId: project.id, taskId: task.id };
 }

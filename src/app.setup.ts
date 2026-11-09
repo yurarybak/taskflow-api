@@ -20,6 +20,8 @@ export function configureApp(app: INestApplication): void {
   app.enableCors({
     origin: corsOrigins,
     credentials: true,
+    // Lets browser clients read the server-provided file name of downloads.
+    exposedHeaders: ['Content-Disposition'],
   });
 
   app.useGlobalPipes(

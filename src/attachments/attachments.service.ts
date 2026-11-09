@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { unlink } from 'fs/promises';
-import { join } from 'path';
+import { randomUUID } from 'crypto';
+import { mkdir, unlink, writeFile } from 'fs/promises';
+import { extname, join } from 'path';
 import { PrismaService } from '../prisma/prisma.service';
 import { TaskActivityService } from '../task-activity/task-activity.service';
 import { WorkspaceRole } from '../../generated/prisma/enums';
@@ -13,6 +14,7 @@ import type {
   WorkspaceMember,
 } from '../../generated/prisma/client';
 import { WorkspaceAccessService } from '../workspace-access/workspace-access.service';
+import { getAttachmentFileType } from './config/attachment-file-types';
 
 @Injectable()
 export class AttachmentsService {
@@ -108,15 +110,23 @@ export class AttachmentsService {
     taskId: string,
     file: Express.Multer.File,
   ): Promise<TaskAttachment> {
-    try {
-      await this.workspaceAccessService.ensureTaskMember(taskId, userId);
+    await this.workspaceAccessService.ensureTaskMember(taskId, userId);
 
-      return this.prisma.$transaction(async (tx) => {
+    const storageName = `${randomUUID()}${extname(file.originalname).toLowerCase()}`;
+    const directory = join(process.cwd(), 'uploads', 'attachments');
+
+    await mkdir(directory, { recursive: true });
+    await writeFile(join(directory, storageName), file.buffer);
+
+    try {
+      return await this.prisma.$transaction(async (tx) => {
         const attachment = await tx.taskAttachment.create({
           data: {
             originalName: file.originalname,
-            storageName: file.filename,
-            mimeType: file.mimetype,
+            storageName,
+            mimeType:
+              getAttachmentFileType(file.originalname)?.mimeType ??
+              file.mimetype,
             size: file.size,
             taskId,
             uploaderId: userId,
@@ -140,7 +150,7 @@ export class AttachmentsService {
       });
     } catch (error) {
       // If there's an error during the database operation, remove the uploaded file to prevent orphaned files
-      await this.removeFileFromStorage(file.filename);
+      await this.removeFileFromStorage(storageName);
       throw error;
     }
   }
